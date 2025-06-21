@@ -1,0 +1,346 @@
+import { decodeJis, encodeJis } from './util/encoding'
+import { Result } from './util/result'
+
+export const RecordTypes = {
+  Header: 1,
+  Data: 2,
+  Trailer: 8,
+  End: 9,
+}
+
+type Fields = string[]
+
+export interface FieldDef {
+  type: 'N' | 'C'
+  size: number
+  name: string
+  display: string
+}
+
+const HeaderFieldDefs: FieldDef[] = [
+  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 2, name: 'shubetsuCode', display: '種別コード' },
+  { type: 'N', size: 1, name: 'codeType', display: 'コード区分' },
+  { type: 'N', size: 10, name: 'clientCode', display: '委託者コード' },
+  { type: 'C', size: 40, name: 'clientName', display: '委託者名' },
+  { type: 'N', size: 4, name: 'withdrawDate', display: '引落日' },
+  { type: 'N', size: 4, name: 'bankCode', display: '取引銀行番号' },
+  { type: 'C', size: 15, name: 'bankName', display: '取引銀行名' },
+  { type: 'N', size: 3, name: 'branchCode', display: '取引支店番号' },
+  { type: 'C', size: 15, name: 'branchName', display: '取引支店名' },
+  { type: 'N', size: 1, name: 'clientAccountType', display: '預金種目(委託者)' },
+  { type: 'N', size: 7, name: 'clientAccountNumber', display: '口座番号(委託者)' },
+  { type: 'C', size: 17, name: 'dummy', display: 'ダミー' }
+]
+
+export const DataFieldDefs: FieldDef[] = [
+  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 4, name: 'payerBankCode', display: '引落銀行番号' },
+  { type: 'C', size: 15, name: 'payerBankName', display: '引落銀行名' },
+  { type: 'N', size: 3, name: 'payerBranchCode', display: '引落支店番号' },
+  { type: 'C', size: 15, name: 'payerBranchName', display: '引落支店名' },
+  { type: 'C', size: 4, name: 'dummy1', display: 'ダミー' },
+  { type: 'N', size: 1, name: 'accountType', display: '預金種目' },
+  { type: 'N', size: 7, name: 'accountNumber', display: '口座番号' },
+  { type: 'C', size: 30, name: 'accountHolder', display: '預金者名' },
+  { type: 'N', size: 10, name: 'amount', display: '引落金額' },
+  { type: 'N', size: 1, name: 'newCode', display: '新規コード' },
+  { type: 'N', size: 20, name: 'customerCode', display: '顧客番号' },
+  { type: 'N', size: 1, name: 'resultCode', display: '振替結果コード' },
+  { type: 'C', size: 8, name: 'dummy2', display: 'ダミー' }
+]
+
+export const TrailerFieldDefs: FieldDef[] = [
+  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 6, name: 'totalCount', display: '合計件数' },
+  { type: 'N', size: 12, name: 'totalAmount', display: '合計金額' },
+  { type: 'N', size: 6, name: 'transferredCount', display: '振替済件数' },
+  { type: 'N', size: 12, name: 'transferredAmount', display: '振替済金額' },
+  { type: 'N', size: 6, name: 'failedCount', display: '振替不能件数' },
+  { type: 'N', size: 12, name: 'failedAmount', display: '振替不能金額' },
+  { type: 'C', size: 65, name: 'dummy', display: 'ダミー' }
+]
+
+export const EndFieldDefs: FieldDef[] = [
+  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'C', size: 119, name: 'dummy', display: 'ダミー' }
+]
+
+export const UnknownFieldDefs: FieldDef[] = [
+  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'C', size: 119, name: 'unknown', display: '不明' }
+]
+
+export interface DocumentErrors {
+  error?: string
+  rowErrors: {
+    rowIndex: number
+    reason: string
+  }[]
+  fieldErrors: string[][]
+}
+
+export function decodeDocument(input: Uint8Array): { rows: string[][], errors: DocumentErrors } {
+  let rowIndex = 0
+  const errors: DocumentErrors = { rowErrors: [], fieldErrors: [] }
+
+  const rows: string[][] = []
+  let index = 0
+
+  function lookaheadLineBreak(): number {
+    if (index + 1 <= input.length && input[index] === LF) {
+      return 1
+    } else if (index + 2 <= input.length && input[index] === CR && input[index + 1] === LF) {
+      return 2
+    }
+    return 0
+  }
+
+  function atEnd(): boolean {
+    const len = lookaheadLineBreak()
+    return index + len === input.length
+  }
+
+  function nextRecord(): Uint8Array | null {
+    if (atEnd()) {
+      return null
+    }
+
+    if (index + RECORD_LEN > input.length) {
+      const partialBytes = input.slice(index, input.length)
+      errors.rowErrors.push({ rowIndex: rowIndex, reason: 'partial line' })
+      index = input.length
+      return Uint8Array.from([...partialBytes, ...encodeJis(' '.repeat(RECORD_LEN - partialBytes.length))])
+    }
+
+    const recordBytes = input.slice(index, index + RECORD_LEN)
+    index += RECORD_LEN
+    index += lookaheadLineBreak()
+    return recordBytes
+  }
+
+  while (index < input.length) {
+    const recordBytes = nextRecord()
+    if (!recordBytes) break
+
+    const recordType = decodeAsciiDigit(recordBytes![0])
+    const fieldDefs = isValidRecordType(recordType) ? recordTypeToFieldDefs(recordType) : UnknownFieldDefs
+    const fields = decodeRecord(recordBytes!, fieldDefs)
+    rows.push(fields)
+
+    rowIndex++
+  }
+
+  _assert(atEnd())
+  return { rows, errors }
+}
+
+function decodeRecord(record: Uint8Array, fieldDefs: FieldDef[]): string[] {
+  _assert(record.length === RECORD_LEN)
+  const fields: string[] = []
+  let bi = 0 // byte index
+  let fi = 0 // field index
+  while (bi < record.length) {
+    _assert(fi < fieldDefs.length)
+    const f = fieldDefs[fi]
+    const chunk = record.slice(bi, bi + f.size)
+    const value = decodeJis(chunk) // TODO: EBCDIC
+    fields.push(value)
+    bi += f.size
+    fi++
+  }
+  return fields
+}
+
+export function encodeDocument(table: string[][], tableDef: FieldDef[][]): Uint8Array {
+  _assert(table.length === tableDef.length)
+  let out: number[] = []
+  for (let i = 0; i < tableDef.length; i++) {
+    const row = table[i], fieldDefs = tableDef[i]
+    writeRecord(row, fieldDefs, out)
+    if (WRITE_CRLF) {
+      out.push(CR, LF)
+    }
+  }
+  return Uint8Array.from(out)
+}
+
+function writeRecord(fields: string[], fieldDefs: FieldDef[], out: number[]) {
+  _assert(fields.length === fieldDefs.length)
+  for (let fi = 0; fi < fieldDefs.length; fi++) {
+    const f = fieldDefs[fi]
+    let code = encodeJis(fields[fi]) // TODO: EBCDIC
+
+    if (f.type === 'N') {
+      if (code.byteLength > f.size) {
+        code = code.slice(code.byteLength - f.size, code.byteLength) // truncate start
+      } else if (code.byteLength < f.size) {
+        code = Uint8Array.from([...encodeJis('0'.repeat(f.size - code.byteLength)), ...code]) // pad start
+      }
+    } else if (f.type === 'C') {
+      if (code.byteLength > f.size) {
+        code = code.slice(0, f.size) // truncate end
+      } else if (code.byteLength < f.size) {
+        code = Uint8Array.from([...code, ...encodeJis(' '.repeat(f.size - code.byteLength))]) // pad end
+      }
+    }
+    out.push(...code)
+  }
+}
+
+const WRITE_CRLF = true
+
+function isValidRecordType(recordType: number): boolean {
+  return recordType === RecordTypes.Header
+    || recordType === RecordTypes.Data
+    || recordType === RecordTypes.Trailer
+    || recordType === RecordTypes.End
+}
+
+function recordTypeToFieldDefs(recordType: number): FieldDef[] {
+  if (recordType === RecordTypes.Header) {
+    return HeaderFieldDefs
+  } else if (recordType === RecordTypes.Data) {
+    return DataFieldDefs
+  } else if (recordType === RecordTypes.Trailer) {
+    return TrailerFieldDefs
+  } else if (recordType === RecordTypes.End) {
+    return EndFieldDefs
+  } else {
+    throw new Error('Unknown record type')
+  }
+}
+
+export function getRecordType(fields: string[]) {
+  if (fields.length >= 1 && fields[0].length >= 1) {
+    const n = +fields[0][0]
+    if (isValidRecordType(n)) {
+      return recordTypeToFieldDefs(n)
+    }
+  }
+  return UnknownFieldDefs
+}
+
+const LF = 0x0A
+const CR = 0x0D
+const DIGIT_ZERO = 0x30
+const RECORD_LEN = 120
+
+function decodeAsciiDigit(code: number): number {
+  return code - DIGIT_ZERO
+}
+
+export function validateDocument(table: Fields[]): DocumentErrors {
+  const errors: DocumentErrors = { rowErrors: [], fieldErrors: [] }
+  for (const [rowIndex, row] of table.entries()) {
+    if (row.length === 0) {
+      errors.rowErrors.push({ rowIndex: rowIndex, reason: 'Empty row' })
+      continue
+    }
+
+    let def: FieldDef[]
+    {
+      const result = validateNumberField((row[0] ?? '').toString(), HeaderFieldDefs[0])
+      if (result.type === 'error') {
+        errors.fieldErrors.push([result.reason])
+        continue
+      }
+      const t = +result.value
+      try {
+        def = recordTypeToFieldDefs(t)
+      } catch {
+        errors.fieldErrors.push(['Unknown record type'])
+        continue
+      }
+      validateDocumentLine(row, def, rowIndex, errors)
+    }
+  }
+  return errors
+}
+
+function validateDocumentLine(
+  fields: Fields,
+  fieldDefs: FieldDef[],
+  rowIndex: number,
+  errors: DocumentErrors
+) {
+  if (fields.length !== fieldDefs.length) {
+    errors.rowErrors.push({
+      rowIndex,
+      reason: `Field count mismatch: expected ${fieldDefs.length}, got ${fields.length}`
+    })
+    return
+  }
+
+  const fieldErrors: string[] = []
+
+  for (let i = 0; i < fieldDefs.length; i++) {
+    const def = fieldDefs[i]
+    let value = fields[i]
+    let reason = ''
+
+    if (def.type === 'N') {
+      const result = validateNumberField(value, def)
+      if (result.type === 'error') {
+        reason = result.reason
+      }
+    } else if (def.type === 'C') {
+      const result = validateCharField(value, def)
+      if (result.type === 'error') {
+        reason = result.reason
+      }
+    } else {
+      throw _never(def.type)
+    }
+
+    fieldErrors.push(reason)
+  }
+
+  errors.fieldErrors.push(fieldErrors)
+}
+
+export function validateNumberField(value: string, def: FieldDef): Result<string, string> {
+  if (value.length > def.size) {
+    return Result.Error('size limit exceeded')
+  }
+  const badChar = reportBadChar(value, NUMBER_REGEXP)
+  if (badChar) {
+    return Result.Error(badChar)
+  }
+
+  return Result.Ok(value.padStart(def.size, '0'))
+}
+
+export function validateCharField(value: string, def: FieldDef): Result<string, string> {
+  if (value.length > def.size) {
+    return Result.Error('size limit exceeded')
+  }
+
+  const badChar = reportBadChar(value, CHAR_REGEXP)
+  if (badChar) {
+    return Result.Error(badChar)
+  }
+  return Result.Ok(value.padEnd(def.size))
+}
+
+function reportBadChar(value: string, regexp: RegExp) {
+  const m = value.match(regexp)
+  if (m == null || m[0].length !== value.length) {
+    const bad = m == null ? 0 : m[0].length
+    const badChar = value[bad]
+    const badCode = value.charCodeAt(bad).toString(16).padStart(4, '0')
+    return `invalid character at ${bad} ('${encodeURIComponent(badChar)}' U+${badCode})`
+  }
+  return null
+}
+
+const NUMBER_REGEXP = /^[0-9]*/
+const CHAR_REGEXP = /^.*/ // TODO: correct this
+
+function _assert(ok: boolean) {
+  if (!ok) throw new Error('Assertion violation')
+}
+
+function _never(value: never): never {
+  throw new Error('unreachable', { cause: value })
+}
