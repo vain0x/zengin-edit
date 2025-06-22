@@ -6,13 +6,30 @@ import { type FieldDef, decodeDocument, encodeDocument, getRecordType, validateC
 
 const testData = `101John                                                                                                                 \r\n202John                                                                                                                 \r\n8                                                                                                                       \r\n9                                                                                                                       \r\n`
 
-test('decode', () => {
-  const d = decodeDocument(encodeJis(testData))
-  deepEqual(d.errors, { fieldErrors: [], rowErrors: [] })
-  strictEqual(d.rows.length, 4)
-  strictEqual(d.rows[0][0], '1')
-  strictEqual(d.rows[0][1], '01')
-  strictEqual(d.rows[1][0], '2')
+describe('decoding', () => {
+  test('success', () => {
+    const d = decodeDocument(encodeJis(testData))
+    deepEqual(d.errors, [])
+    strictEqual(d.rows.length, 4)
+    strictEqual(d.rows[0][0], '1')
+    strictEqual(d.rows[0][1], '01')
+    strictEqual(d.rows[1][0], '2')
+  })
+
+  test('partial lines', () => {
+    const partialLines = `1\r2\n8\r\n9\r\n`
+    const decoded = decodeDocument(encodeJis(partialLines))
+    strictEqual(decoded.rows.length, 4)
+    deepStrictEqual(decoded.rows.map(r => r[0]), [...'1289'])
+    deepStrictEqual(decoded.errors, [0, 1, 2, 3].map(i => ({ type: 'partial', rowIndex: i })))
+  })
+
+  test('no linebreaks', () => {
+    // decode should work without linebreaks
+    const decoded = decodeDocument(encodeJis(testData.replaceAll('\r\n', '')))
+    strictEqual(decoded.rows.length, 4)
+    deepStrictEqual(decoded.errors, [])
+  })
 })
 
 test('encode', () => {

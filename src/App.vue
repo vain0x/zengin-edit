@@ -3,7 +3,7 @@ import base64js from 'base64-js'
 import { computed, ref } from 'vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
-import { decodeDocument, encodeDocument, getRecordType } from './zengin'
+import { decodeDocument, encodeDocument, getRecordType, type DecodeError } from './zengin'
 
 type Fields = string[]
 
@@ -16,6 +16,7 @@ const filename = ref('untitled.txt')
 const currentTable = ref<Fields[]>([])
 const errorCells = ref<ErrorCell[]>([])
 const textData = ref('')
+const decodeErrors = ref<DecodeError[]>([])
 
 function onFileChange(ev: Event) {
   const inputEl = ev.target as HTMLInputElement & { type: 'file' }
@@ -66,6 +67,7 @@ function setText(text: string) {
   textData.value = text
   const decoded = decodeDocument(encodeJis(textData.value))
   currentTable.value = structuredClone(decoded.rows)
+  decodeErrors.value = decoded.errors
 }
 
 function getLabel(rowIndex: number | null, colIndex: number | null): string | undefined {
@@ -129,6 +131,11 @@ setText(exampleData)
     <v-text-field label="Filename" v-model="filename" />
 
     <v-textarea label="Text" :model-value="textData" @input="onTextChange" rows="4" />
+
+    <v-alert v-if="decodeErrors.length !== 0" type="error" style="margin-block-end: 32px;">
+      Some lines don't have 120 bytes.
+      {{'(Line numbers: ' + decodeErrors.map(e => e.rowIndex + 1).join(', ') + ').'}}
+    </v-alert>
 
     <h2>Table</h2>
     <div class="dt-container">

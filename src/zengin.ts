@@ -1,3 +1,4 @@
+import { NewLineKind } from 'typescript'
 import { decodeJis, encodeJis } from './util/encoding'
 import { Result } from './util/result'
 
@@ -71,6 +72,11 @@ export const UnknownFieldDefs: FieldDef[] = [
   { type: 'C', size: 119, name: 'unknown', display: '不明' }
 ]
 
+export interface DecodeError {
+  type: 'partial'
+  rowIndex: number
+}
+
 export interface DocumentErrors {
   error?: string
   rowErrors: {
@@ -80,18 +86,18 @@ export interface DocumentErrors {
   fieldErrors: string[][]
 }
 
-export function decodeDocument(input: Uint8Array): { rows: string[][], errors: DocumentErrors } {
+export function decodeDocument(input: Uint8Array): { rows: string[][], errors: DecodeError[] } {
   let rowIndex = 0
-  const errors: DocumentErrors = { rowErrors: [], fieldErrors: [] }
+  const errors: DecodeError[] = []
 
   const rows: string[][] = []
   let index = 0
 
   function lookaheadLineBreak(): number {
-    if (index + 1 <= input.length && input[index] === LF) {
-      return 1
-    } else if (index + 2 <= input.length && input[index] === CR && input[index + 1] === LF) {
+    if (index + 2 <= input.length && input[index] === CR && input[index + 1] === LF) {
       return 2
+    } else if (index + 1 <= input.length && (input[index] === LF || input[index] === CR)) {
+      return 1
     }
     return 0
   }
@@ -106,16 +112,36 @@ export function decodeDocument(input: Uint8Array): { rows: string[][], errors: D
       return null
     }
 
-    if (index + RECORD_LEN > input.length) {
-      const partialBytes = input.slice(index, input.length)
-      errors.rowErrors.push({ rowIndex: rowIndex, reason: 'partial line' })
-      index = input.length
-      return Uint8Array.from([...partialBytes, ...encodeJis(' '.repeat(RECORD_LEN - partialBytes.length))])
+    let recordBytes: Uint8Array
+    if (index + RECORD_LEN <= input.length) {
+      recordBytes = input.slice(index, index + RECORD_LEN)
+    } else {
+      recordBytes = input.slice(index, input.length)
     }
 
-    const recordBytes = input.slice(index, index + RECORD_LEN)
-    index += RECORD_LEN
+    // Split by a linebreak if any.
+    let crAt = recordBytes.indexOf(CR)
+    if (crAt < 0) {
+      crAt = recordBytes.length // sentinel
+    }
+    let lfAt = recordBytes.indexOf(LF)
+    if (lfAt < 0) {
+      lfAt = recordBytes.length // sentinel
+    }
+    const linebreak = Math.min(crAt, lfAt)
+    if (linebreak < recordBytes.length) {
+      recordBytes = input.slice(index, index + linebreak)
+    }
+
+    _assert(recordBytes.length <= RECORD_LEN)
+    index += recordBytes.length
     index += lookaheadLineBreak()
+
+    const isComplete = recordBytes.length === RECORD_LEN
+    if (!isComplete) {
+      recordBytes = Uint8Array.from([...recordBytes, ...encodeJis(' '.repeat(RECORD_LEN - recordBytes.length))])
+      errors.push({ type: 'partial', rowIndex })
+    }
     return recordBytes
   }
 
