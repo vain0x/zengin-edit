@@ -1,20 +1,15 @@
 <script lang="ts" setup>
+import { mdiAlert } from '@mdi/js'
 import base64js from 'base64-js'
 import { computed, ref } from 'vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
-import { decodeDocument, encodeDocument, getRecordType, type DecodeError } from './zengin'
+import { decodeDocument, encodeDocument, getRecordType, validateDocument, type DecodeError } from './zengin'
 
 type Fields = string[]
 
-type ErrorCell = {
-  row: number
-  col: number
-}
-
 const filename = ref('untitled.txt')
 const currentTable = ref<Fields[]>([])
-const errorCells = ref<ErrorCell[]>([])
 const textData = ref('')
 const decodeErrors = ref<DecodeError[]>([])
 
@@ -95,6 +90,19 @@ const rowTypes = computed(() => {
   })
 })
 
+const validationResult = computed(() => {
+  return validateDocument(currentTable.value)
+})
+
+function getCellErrorAt(rowIndex: number, colIndex: number) {
+  return validationResult.value.fieldErrors.at(rowIndex)?.at(colIndex) || undefined
+}
+
+const hasError = computed(() => {
+  const r = validationResult.value
+  return r.fieldErrors.some(fields => fields.some(f => !!f))
+})
+
 function onTableChange(ev: Event, rowIndex: number, colIndex: number) {
   const inputEl = ev.target as HTMLInputElement
   console.log('onTableChange', ev.target, rowIndex, colIndex)
@@ -137,12 +145,16 @@ setText(exampleData)
       {{'(Line numbers: ' + decodeErrors.map(e => e.rowIndex + 1).join(', ') + ').'}}
     </v-alert>
 
-    <h2>Table</h2>
+    <h2>
+      Table
+      <v-icon v-if="hasError" :icon="mdiAlert" color="red" size="20" />
+    </h2>
     <div class="dt-container">
       <div v-for="(row, rowIndex) in currentTable" class="dt-row" :data-row="rowIndex">
         <div v-for="(field, colIndex) in row" class="dt-cell" :data-col="colIndex">
           <v-text-field :label="getLabel(rowIndex, colIndex)" :hint="getType(rowIndex, colIndex)" :model-value="field"
-            @input="(ev: Event) => onTableChange(ev, rowIndex, colIndex)" density="compact" variant="outlined" />
+            :error-messages="getCellErrorAt(rowIndex, colIndex)" density="compact" variant="outlined"
+            @input="(ev: Event) => onTableChange(ev, rowIndex, colIndex)" />
         </div>
       </div>
     </div>

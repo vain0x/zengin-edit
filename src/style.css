@@ -42,5 +42,9 @@ body {
 }
 
 .dt-cell {
-  min-width: 100px;
+  width: 150px;
+}
+
+.v-input__details {
+  padding-block: 6px 12px;
 }

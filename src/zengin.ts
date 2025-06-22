@@ -1,4 +1,3 @@
-import { NewLineKind } from 'typescript'
 import { decodeJis, encodeJis } from './util/encoding'
 import { Result } from './util/result'
 
@@ -77,12 +76,7 @@ export interface DecodeError {
   rowIndex: number
 }
 
-export interface DocumentErrors {
-  error?: string
-  rowErrors: {
-    rowIndex: number
-    reason: string
-  }[]
+export interface TableError {
   fieldErrors: string[][]
 }
 
@@ -256,73 +250,63 @@ function decodeAsciiDigit(code: number): number {
   return code - DIGIT_ZERO
 }
 
-export function validateDocument(table: Fields[]): DocumentErrors {
-  const errors: DocumentErrors = { rowErrors: [], fieldErrors: [] }
-  for (const [rowIndex, row] of table.entries()) {
-    if (row.length === 0) {
-      errors.rowErrors.push({ rowIndex: rowIndex, reason: 'Empty row' })
+export function validateDocument(table: Fields[]): TableError {
+  const errors: TableError = { fieldErrors: [] }
+  for (const [rowIndex, fields] of table.entries()) {
+    if (fields.length === 0) {
+      // never?
+      errors.fieldErrors.push([''])
       continue
     }
 
-    let def: FieldDef[]
+    let fieldDefs: FieldDef[]
     {
-      const result = validateNumberField((row[0] ?? '').toString(), HeaderFieldDefs[0])
+      const result = validateNumberField((fields[0] ?? '').toString(), HeaderFieldDefs[0])
       if (result.type === 'error') {
         errors.fieldErrors.push([result.reason])
         continue
       }
       const t = +result.value
       try {
-        def = recordTypeToFieldDefs(t)
+        fieldDefs = recordTypeToFieldDefs(t)
       } catch {
         errors.fieldErrors.push(['Unknown record type'])
         continue
       }
-      validateDocumentLine(row, def, rowIndex, errors)
+
+      // if (fields.length !== fieldDefs.length) {
+      //   errors.rowErrors.push({
+      //     rowIndex,
+      //     reason: `Field count mismatch: expected ${fieldDefs.length}, got ${fields.length}`
+      //   })
+      //   continue
+      // }
+
+      const fieldErrors: string[] = []
+      for (let i = 0; i < fieldDefs.length; i++) {
+        const def = fieldDefs[i]
+        let value = fields[i]
+        let reason = ''
+
+        if (def.type === 'N') {
+          const result = validateNumberField(value, def)
+          if (result.type === 'error') {
+            reason = result.reason
+          }
+        } else if (def.type === 'C') {
+          const result = validateCharField(value, def)
+          if (result.type === 'error') {
+            reason = result.reason
+          }
+        } else {
+          throw _never(def.type)
+        }
+        fieldErrors.push(reason)
+      }
+      errors.fieldErrors.push(fieldErrors)
     }
   }
   return errors
-}
-
-function validateDocumentLine(
-  fields: Fields,
-  fieldDefs: FieldDef[],
-  rowIndex: number,
-  errors: DocumentErrors
-) {
-  if (fields.length !== fieldDefs.length) {
-    errors.rowErrors.push({
-      rowIndex,
-      reason: `Field count mismatch: expected ${fieldDefs.length}, got ${fields.length}`
-    })
-    return
-  }
-
-  const fieldErrors: string[] = []
-
-  for (let i = 0; i < fieldDefs.length; i++) {
-    const def = fieldDefs[i]
-    let value = fields[i]
-    let reason = ''
-
-    if (def.type === 'N') {
-      const result = validateNumberField(value, def)
-      if (result.type === 'error') {
-        reason = result.reason
-      }
-    } else if (def.type === 'C') {
-      const result = validateCharField(value, def)
-      if (result.type === 'error') {
-        reason = result.reason
-      }
-    } else {
-      throw _never(def.type)
-    }
-
-    fieldErrors.push(reason)
-  }
-
-  errors.fieldErrors.push(fieldErrors)
 }
 
 export function validateNumberField(value: string, def: FieldDef): Result<string, string> {
@@ -354,7 +338,7 @@ function reportBadChar(value: string, regexp: RegExp) {
   if (m == null || m[0].length !== value.length) {
     const bad = m == null ? 0 : m[0].length
     const badChar = value[bad]
-    const badCode = value.charCodeAt(bad).toString(16).padStart(4, '0')
+    const badCode = value.charCodeAt(bad).toString(16).padStart(4, '0').toUpperCase()
     return `invalid character at ${bad} ('${encodeURIComponent(badChar)}' U+${badCode})`
   }
   return null
