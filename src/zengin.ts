@@ -15,10 +15,30 @@ export interface FieldDef {
   size: number
   name: string
   display: string
+  ui?: FieldUi
+}
+
+export type FieldUi = {
+  type: 'text-field'
+} | {
+  type: 'select'
+  options: { value: string; title: string }[]
+}
+
+const typeUi: FieldUi = {
+  type: 'select',
+  options: ([
+    { value: RecordTypes.Header, title: 'ヘッダー' },
+    { value: RecordTypes.Data, title: 'データ' },
+    { value: RecordTypes.Trailer, title: 'トレイラー' },
+    { value: RecordTypes.End, title: 'エンド' },
+  ] satisfies { value: number; title: string }[]).map(option => {
+    return { value: option.value.toString(), title: `${option.value}: ${option.title}` }
+  })
 }
 
 const HeaderFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
   { type: 'N', size: 2, name: 'shubetsuCode', display: '種別コード' },
   { type: 'N', size: 1, name: 'codeType', display: 'コード区分' },
   { type: 'N', size: 10, name: 'clientCode', display: '委託者コード' },
@@ -34,7 +54,7 @@ const HeaderFieldDefs: FieldDef[] = [
 ]
 
 export const DataFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
   { type: 'N', size: 4, name: 'payerBankCode', display: '引落銀行番号' },
   { type: 'C', size: 15, name: 'payerBankName', display: '引落銀行名' },
   { type: 'N', size: 3, name: 'payerBranchCode', display: '引落支店番号' },
@@ -51,7 +71,7 @@ export const DataFieldDefs: FieldDef[] = [
 ]
 
 export const TrailerFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
   { type: 'N', size: 6, name: 'totalCount', display: '合計件数' },
   { type: 'N', size: 12, name: 'totalAmount', display: '合計金額' },
   { type: 'N', size: 6, name: 'transferredCount', display: '振替済件数' },
@@ -62,12 +82,12 @@ export const TrailerFieldDefs: FieldDef[] = [
 ]
 
 export const EndFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
   { type: 'C', size: 119, name: 'dummy', display: 'ダミー' }
 ]
 
 export const UnknownFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分' },
+  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
   { type: 'C', size: 119, name: 'unknown', display: '不明' }
 ]
 

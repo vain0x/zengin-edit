@@ -94,21 +94,43 @@ const hasError = computed(() => {
   return r.fieldErrors.some(fields => fields.some(f => !!f))
 })
 
-function onTableChange(ev: Event, rowIndex: number, colIndex: number) {
-  const inputEl = ev.target as HTMLInputElement
-  console.log('onTableChange', ev.target, rowIndex, colIndex)
-  const value = inputEl.value
-  currentTable.value = currentTable.value.map((row, ri) => {
-    if (ri !== rowIndex) {
-      return row
+function onTableChange(value: string, rowIndex: number, colIndex: number) {
+  console.log('onTableChange', value, rowIndex, colIndex)
+
+  let tableUpdated = false
+
+  // type change
+  if (colIndex === 0) {
+    let fields = currentTable.value[rowIndex]
+    const fieldDef = getRecordType(fields)
+    fields = fields.map((field, index) => index === 0 ? value : field)
+    const encodedRow = encodeDocument([fields], [fieldDef])
+    const decoded = decodeDocument(encodedRow)
+    const updatedRow = decoded.rows.at(0)
+    if (updatedRow != null) {
+      currentTable.value = currentTable.value.map((row, ri) => {
+        if (ri !== rowIndex) {
+          return row
+        }
+        return updatedRow
+      })
+      tableUpdated = true
     }
-    return row.map((col, ci) => {
-      if (ci !== colIndex) {
-        return col
+  }
+
+  if (!tableUpdated) {
+    currentTable.value = currentTable.value.map((row, ri) => {
+      if (ri !== rowIndex) {
+        return row
       }
-      return value
+      return row.map((col, ci) => {
+        if (ci !== colIndex) {
+          return col
+        }
+        return value
+      })
     })
-  })
+  }
   textData.value = decodeJis(encodeDocument(currentTable.value, currentTable.value.map(row => getRecordType(row))))
 }
 
@@ -144,7 +166,7 @@ setText(exampleData)
       <div v-for="(row, rowIndex) in currentTable" class="dt-row" :data-row="rowIndex">
         <CellEditor v-for="(field, colIndex) in row" :model-value="field" :field-def="getFieldDef(rowIndex, colIndex)"
           :rowIndex="rowIndex" :colIndex="colIndex" :error="getCellErrorAt(rowIndex, colIndex)"
-          @update:model-value="(ev: Event) => onTableChange(ev, rowIndex, colIndex)" />
+          @update:model-value="(value: string) => onTableChange(value, rowIndex, colIndex)" />
       </div>
     </div>
   </div>
