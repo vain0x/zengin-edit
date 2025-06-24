@@ -2,7 +2,7 @@ import { deepEqual, deepStrictEqual, strictEqual } from 'node:assert'
 import { describe, test } from 'vitest'
 import { encodeJis } from '../src/util/encoding'
 import { Result } from '../src/util/result'
-import { type FieldDef, decodeDocument, encodeDocument, getRecordType, validateCharField, validateNumberField } from '../src/zengin'
+import { type FieldDef, decodeDocument, encodeDocument, getRecordType, validateCharField, validateDocument, validateNumberField } from '../src/zengin'
 
 const testData = `101John                                                                                                                 \r\n202John                                                                                                                 \r\n8                                                                                                                       \r\n9                                                                                                                       \r\n`
 
@@ -38,6 +38,51 @@ test('encode', () => {
   const definition = d.rows.map(row => getRecordType(row))
   const encoded = encodeDocument(d.rows, definition)
   deepStrictEqual(encoded, input)
+})
+
+describe('validate record type ordering', () => {
+  // prints a character for each row, '.' for ok, 'x' for error
+  const f = (input: string) => {
+    const decoded = decodeDocument(encodeJis(input))
+    const error = validateDocument(decoded.rows).fieldErrors.map(row => row[0] ? 'x' : '.').join('')
+    return error
+  }
+
+  test('empty', () => {
+    strictEqual(f(''), '')
+  })
+
+  test('end-only', () => {
+    strictEqual(f(''), '')
+  })
+
+  test('starts with non-header', () => {
+    strictEqual(f('2\n'), 'x')
+    strictEqual(f('8\n'), 'x')
+  })
+
+  test('duplicated header', () => {
+    strictEqual(f('1\n1'), '.x')
+    strictEqual(f('1\n2\n1\n'), '..x')
+  })
+
+  test('data after trailer', () => {
+    strictEqual(f('1\n1'), '.x')
+    strictEqual(f('1\n2\n1\n'), '..x')
+  })
+
+  test('missing trailer', () => {
+    strictEqual(f('1\n2\n2'), '..x')
+  })
+
+  test('records after end', () => {
+    strictEqual(f('9\n1'), '.x')
+    strictEqual(f('9\n9'), '.x')
+  })
+
+  test('missing end', () => {
+    strictEqual(f('1\n2\n2\n8'), '...x')
+  })
 })
 
 describe('validateNumberField', () => {

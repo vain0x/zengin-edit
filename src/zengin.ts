@@ -275,7 +275,7 @@ export function validateDocument(table: Fields[]): TableError {
   for (const [rowIndex, fields] of table.entries()) {
     if (fields.length === 0) {
       // never?
-      errors.fieldErrors.push([''])
+      errors.fieldErrors.push(['', ''])
       continue
     }
 
@@ -283,14 +283,14 @@ export function validateDocument(table: Fields[]): TableError {
     {
       const result = validateNumberField((fields[0] ?? '').toString(), HeaderFieldDefs[0])
       if (result.type === 'error') {
-        errors.fieldErrors.push([result.reason])
+        errors.fieldErrors.push([result.reason, ''])
         continue
       }
       const t = +result.value
       try {
         fieldDefs = recordTypeToFieldDefs(t)
       } catch {
-        errors.fieldErrors.push(['Unknown record type'])
+        errors.fieldErrors.push(['Unknown record type', ''])
         continue
       }
 
@@ -324,6 +324,55 @@ export function validateDocument(table: Fields[]): TableError {
         fieldErrors.push(reason)
       }
       errors.fieldErrors.push(fieldErrors)
+    }
+  }
+  _assert(errors.fieldErrors.length === table.length)
+  _assert(errors.fieldErrors.every((row, rowIndex) => row.length === table[rowIndex].length))
+
+  // Record ordering validation.
+  // (header data* trailer)* end $
+  let state: 0 | 1 | 2 = 0 // (0: initial or after trailer, 1: after header, 2: after end)
+  let invalid = false
+  for (const [rowIndex, fields] of table.entries()) {
+    if (fields.length === 0) continue
+    let error: string | null = null
+    const type = +fields[0][0]
+    if (!isValidRecordType(type)) {
+      invalid = true
+      errors.fieldErrors[rowIndex][0] = 'Invalid record type'
+      break
+    }
+    switch (state) {
+      case 0:
+        switch (type) {
+          case RecordTypes.Header: state = 1; continue
+          case RecordTypes.End: state = 2; continue
+          default: error = 'Expected header or end'; break
+        }
+        break
+
+      case 1:
+        switch (type) {
+          case RecordTypes.Data: continue
+          case RecordTypes.Trailer: state = 0; continue
+          default: error = 'Expected data or trailer'; break
+        }
+        break
+
+      case 2: error = 'Unexpected any record (after end records)'; break
+      default: _never(state)
+    }
+
+    if (error) {
+      invalid = true
+      errors.fieldErrors[rowIndex][0] = error
+      break
+    }
+  }
+  if (!invalid && state !== 2) {
+    const last = errors.fieldErrors.at(-1)
+    if (last && last.length >= 1 && !last[0]) {
+      last[0] = state === 0 ? 'Expected trailer record after this' : 'Expected end record after this one'
     }
   }
   return errors
