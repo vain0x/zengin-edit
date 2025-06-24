@@ -2,9 +2,10 @@
 import { mdiAlert } from '@mdi/js'
 import base64js from 'base64-js'
 import { computed, ref } from 'vue'
+import CellEditor from './components/CellEditor.vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
-import { decodeDocument, encodeDocument, getRecordType, validateDocument, type DecodeError } from './zengin'
+import { decodeDocument, encodeDocument, getRecordType, validateDocument, type DecodeError, type FieldDef } from './zengin'
 
 type Fields = string[]
 
@@ -65,22 +66,12 @@ function setText(text: string) {
   decodeErrors.value = decoded.errors
 }
 
-function getLabel(rowIndex: number | null, colIndex: number | null): string | undefined {
-  if (rowIndex == null || colIndex == null) {
-    return undefined
-  }
-  return rowTypes.value?.at(rowIndex)?.type?.at(colIndex)?.display || undefined
+function getFieldDef(rowIndex: number, colIndex: number): FieldDef {
+  return rowTypes.value?.at(rowIndex)?.type?.at(colIndex) || unknownField
 }
 
-function getType(rowIndex: number | null, colIndex: number | null): string | undefined {
-  if (rowIndex == null || colIndex == null) {
-    return undefined
-  }
-  const def = rowTypes.value?.at(rowIndex)?.type?.at(colIndex)
-  if (!def) {
-    return undefined
-  }
-  return `${def.type}(${def.size})`
+const unknownField: FieldDef = {
+  type: 'C', name: 'unknown', size: 120, display: '不明',
 }
 
 const rowTypes = computed(() => {
@@ -151,11 +142,9 @@ setText(exampleData)
     </h2>
     <div class="dt-container">
       <div v-for="(row, rowIndex) in currentTable" class="dt-row" :data-row="rowIndex">
-        <div v-for="(field, colIndex) in row" class="dt-cell" :data-col="colIndex">
-          <v-text-field :label="getLabel(rowIndex, colIndex)" :hint="getType(rowIndex, colIndex)" :model-value="field"
-            :error-messages="getCellErrorAt(rowIndex, colIndex)" density="compact" variant="outlined"
-            @input="(ev: Event) => onTableChange(ev, rowIndex, colIndex)" />
-        </div>
+        <CellEditor v-for="(field, colIndex) in row" :model-value="field" :field-def="getFieldDef(rowIndex, colIndex)"
+          :rowIndex="rowIndex" :colIndex="colIndex" :error="getCellErrorAt(rowIndex, colIndex)"
+          @update:model-value="(ev: Event) => onTableChange(ev, rowIndex, colIndex)" />
       </div>
     </div>
   </div>
