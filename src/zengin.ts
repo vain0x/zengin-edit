@@ -423,6 +423,51 @@ const NUMBER_REGEXP = /^[0-9]*/
 // FF9E-FF9F: half-width sonant marks (dakuten, han-dakuten)
 const CHAR_REGEXP = /^[- '\(\)+,\./0-9:?A-Z\\\uFF62-\uFF63\uFF66\uFF71-\uFF9F]*/u
 
+// table must be valid in record ordering
+export const computeResult = (table: string[][]): TrailerRecord[] => {
+  const records: TrailerRecord[] = []
+  let current: TrailerRecord = { ...emptyTrailerRecord }
+
+  const def = getRecordType(['2'])!
+  const amountIndex = def.findIndex(d => d.name === 'amount')
+  const resultCodeIndex = def.findIndex(d => d.name === 'resultCode')
+
+  for (const h of table) {
+    const type = +h[0]
+    if (type === RecordTypes.Data) {
+      _assert(h.length === def.length)
+      const amount = +h[amountIndex]
+      const resultCode = +h[resultCodeIndex]
+      // success
+      if (resultCode === 0) {
+        current.transferredAmount += amount
+        current.transferredCount++
+      } else {
+        current.failedAmount += amount
+        current.failedCount++
+      }
+      current.totalAmount += amount
+      current.totalCount++
+      continue
+    } else if (type === RecordTypes.Trailer) {
+      records.push(current)
+      current = { ...emptyTrailerRecord }
+    }
+  }
+  return records
+}
+
+export interface TrailerRecord {
+  totalCount: number
+  totalAmount: number
+  transferredCount: number
+  transferredAmount: number
+  failedCount: number
+  failedAmount: number
+}
+
+const emptyTrailerRecord: TrailerRecord = { totalAmount: 0, totalCount: 0, transferredAmount: 0, transferredCount: 0, failedAmount: 0, failedCount: 0 }
+
 function _assert(ok: boolean) {
   if (!ok) throw new Error('Assertion violation')
 }

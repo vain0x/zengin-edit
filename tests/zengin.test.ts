@@ -2,7 +2,7 @@ import { deepEqual, deepStrictEqual, strictEqual } from 'node:assert'
 import { describe, test } from 'vitest'
 import { encodeJis } from '../src/util/encoding'
 import { Result } from '../src/util/result'
-import { type FieldDef, decodeDocument, encodeDocument, getRecordType, validateCharField, validateDocument, validateNumberField } from '../src/zengin'
+import { type FieldDef, type TrailerRecord, computeResult, decodeDocument, encodeDocument, getRecordType, validateCharField, validateDocument, validateNumberField } from '../src/zengin'
 
 const testData = `101John                                                                                                                 \r\n202John                                                                                                                 \r\n8                                                                                                                       \r\n9                                                                                                                       \r\n`
 
@@ -42,7 +42,7 @@ test('encode', () => {
 
 describe('validate record type ordering', () => {
   // prints a character for each row, '.' for ok, 'x' for error
-  const f = (input: string) => {
+  function f(input: string): string {
     const decoded = decodeDocument(encodeJis(input))
     const error = validateDocument(decoded.rows).fieldErrors.map(row => row[0] ? 'x' : '.').join('')
     return error
@@ -82,6 +82,67 @@ describe('validate record type ordering', () => {
 
   test('missing end', () => {
     strictEqual(f('1\n2\n2\n8'), '...x')
+  })
+})
+
+describe('trailer amounts', () => {
+  function f(input: { amount: string; resultCode: string }[][]): string[] {
+    const def = getRecordType(['2'])! // data
+
+    const table: string[][] = []
+    for (const xs of input) {
+      table.push(
+        ['1'],
+        ...xs.map(x => {
+          return def.map(d => {
+            switch (d.name) {
+              case 'type': return '2'
+              case 'amount': return x.amount
+              case 'resultCode': return x.resultCode
+              default: return '' // not used
+            }
+          })
+        }),
+        ['8'],
+      )
+    }
+    const result = computeResult(table)
+    return result.map(format)
+  }
+
+  const format = (s: TrailerRecord) => {
+    return `total ${s.totalCount}=>${s.totalAmount}, transferred ${s.transferredCount}=>${s.transferredAmount}, failed ${s.failedCount}=>${s.failedAmount}`
+  }
+
+  test('all success', () => {
+    deepStrictEqual(f([[
+      { amount: '100', resultCode: '0' },
+      { amount: '20', resultCode: '0' },
+      { amount: '3', resultCode: '0' },
+    ]]), [
+      'total 3=>123, transferred 3=>123, failed 0=>0',
+    ])
+  })
+
+  test('partial', () => {
+    deepStrictEqual(f([[
+      { amount: '1000', resultCode: '0' },
+      { amount: '200', resultCode: '1' },
+      { amount: '30', resultCode: '0' },
+      { amount: '4', resultCode: '1' },
+    ]]), [
+      'total 4=>1234, transferred 2=>1030, failed 2=>204',
+    ])
+  })
+
+  test('multiple headers', () => {
+    deepStrictEqual(f([
+      [{ amount: '1000', resultCode: '0' }],
+      [{ amount: '2000', resultCode: '0' }],
+    ]), [
+      'total 1=>1000, transferred 1=>1000, failed 0=>0',
+      'total 1=>2000, transferred 1=>2000, failed 0=>0',
+    ])
   })
 })
 

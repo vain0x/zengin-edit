@@ -5,7 +5,7 @@ import { computed, ref } from 'vue'
 import CellEditor from './components/CellEditor.vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
-import { decodeDocument, encodeDocument, getRecordType, validateDocument, type DecodeError, type FieldDef } from './zengin'
+import { computeResult, decodeDocument, encodeDocument, getRecordType, validateDocument, type DecodeError, type FieldDef } from './zengin'
 
 type Fields = string[]
 
@@ -86,12 +86,44 @@ const validationResult = computed(() => {
 })
 
 function getCellErrorAt(rowIndex: number, colIndex: number) {
-  return validationResult.value.fieldErrors.at(rowIndex)?.at(colIndex) || undefined
+  const cellError = validationResult.value.fieldErrors.at(rowIndex)?.at(colIndex) || undefined
+  if (cellError) {
+    return cellError
+  }
+
+  if (!hasError.value) {
+    let blockIndex = 0
+    for (let i = 0; i < rowIndex; i++) {
+      const fields = currentTable.value[i]
+      if (fields[0] === '8') { // trailer
+        blockIndex++
+      }
+    }
+
+    const def = getFieldDef(rowIndex, colIndex)
+    const trailer = trailerRecords.value?.at(blockIndex)
+    if (def && trailer && Object.hasOwn(trailer, def.name)) {
+      const inputValue = currentTable.value[rowIndex][colIndex]
+      const computedValue = (trailer as any)[def.name]
+      if (+computedValue !== +inputValue) {
+        return 'Computed: ' + computedValue
+      }
+    }
+  }
+  return undefined
 }
 
 const hasError = computed(() => {
   const r = validationResult.value
   return r.fieldErrors.some(fields => fields.some(f => !!f))
+})
+
+const trailerRecords = computed(() => {
+  if (hasError.value) {
+    return null
+  }
+  const table = currentTable.value
+  return computeResult(table)
 })
 
 function onTableChange(value: string, rowIndex: number, colIndex: number) {
