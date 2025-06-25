@@ -107,18 +107,28 @@ describe('validateNumberField', () => {
 describe('validateCharField', () => {
   const c1: FieldDef = { type: 'C', size: 1, name: 'type', display: 'C(1)' }
   const c3: FieldDef = { type: 'C', size: 3, name: 'type', display: 'C(3)' }
+  const c99: FieldDef = { type: 'C', size: 99, name: 'type', display: 'C(99)' }
 
   test('ok', () => {
     strictEqual(validateCharField(' ', c1).type, 'ok')
     strictEqual(validateCharField('ｲ', c1).type, 'ok')
-    strictEqual(validateCharField('AtZ', c3).type, 'ok')
+    strictEqual(validateCharField('ATZ', c3).type, 'ok')
     strictEqual(validateCharField('ｱｲｳ', c3).type, 'ok')
   })
   test('longer', () => {
     strictEqual(validateCharField('ﾊﾞﾂﾄﾞ', c1).type, 'error')
   })
+  test('half-width ok', () => {
+    const value = '｢｣ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ'
+    strictEqual(validateCharField(value, c99).type, 'ok')
+    strictEqual(validateCharField('ﾃﾞﾎﾟｳﾞ', c99).type, 'ok')
+  })
+  test('bad', () => {
+    strictEqual(validateCharField('ｧ', c3).type, 'error') // small half-width katakana A
+    strictEqual(validateCharField('\n', c3).type, 'error')
+  })
   test('bad char report', () => {
     deepStrictEqual(validateNumberField('0x1', c3), Result.Error('invalid character at 1 (\'x\' U+0078)'))
-    // deepStrictEqual(validateCharField('\u2716', c3), Result.Error(''))
+    deepStrictEqual(validateCharField('あ', c3), Result.Error('invalid character at 0 (\'あ\' U+3042)'))
   })
 })

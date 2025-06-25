@@ -406,15 +406,22 @@ function reportBadChar(value: string, regexp: RegExp) {
   const m = value.match(regexp)
   if (m == null || m[0].length !== value.length) {
     const bad = m == null ? 0 : m[0].length
-    const badChar = value[bad]
+    const c = value.charCodeAt(bad)
+    const badChar = c >= 0x20 && c !== 0x7F ? "'" + value[bad] + "' " : ''
     const badCode = value.charCodeAt(bad).toString(16).padStart(4, '0').toUpperCase()
-    return `invalid character at ${bad} ('${encodeURIComponent(badChar)}' U+${badCode})`
+    return `invalid character at ${bad} (${badChar}U+${badCode})`
   }
   return null
 }
 
 const NUMBER_REGEXP = /^[0-9]*/
-const CHAR_REGEXP = /^.*/ // TODO: correct this
+
+// https://en.wikipedia.org/wiki/Halfwidth_and_Fullwidth_Forms_(Unicode_block)
+// FF62-FF63: half-width brackets
+// FF66: half-width katakana wo
+// FF71-FF9D: half-width (non-small) katakana
+// FF9E-FF9F: half-width sonant marks (dakuten, han-dakuten)
+const CHAR_REGEXP = /^[- '\(\)+,\./0-9:?A-Z\\\uFF62-\uFF63\uFF66\uFF71-\uFF9F]*/u
 
 function _assert(ok: boolean) {
   if (!ok) throw new Error('Assertion violation')
