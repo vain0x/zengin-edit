@@ -64,6 +64,8 @@ const FujitsuEbcDic = ((): {
     E2 STUVWXYZ
     F0 0123456789`
   const mapping = [...new Array(0x100).keys()].map(() => 0)
+  mapping[0x0D] = 0x0D // CR
+  mapping[0x0A] = 0x0A // LF
   for (let line of table.split(/\r?\n/)) {
     line = line.trim()
     if (!line) continue

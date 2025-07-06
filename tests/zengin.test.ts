@@ -1,6 +1,6 @@
 import { deepEqual, deepStrictEqual, strictEqual } from 'node:assert'
 import { describe, test } from 'vitest'
-import { encodeJis } from '../src/util/encoding'
+import { decodeEbcdic, encodeEbcdic, encodeJis } from '../src/util/encoding'
 import { Result } from '../src/util/result'
 import { type FieldDef, type TrailerRecord, computeResult, decodeDocument, encodeDocument, getRecordType, validateCharField, validateDocument, validateNumberField } from '../src/zengin'
 
@@ -191,5 +191,55 @@ describe('validateCharField', () => {
   test('bad char report', () => {
     deepStrictEqual(validateNumberField('0x1', c3), Result.Error('invalid character at 1 (\'x\' U+0078)'))
     deepStrictEqual(validateCharField('あ', c3), Result.Error('invalid character at 0 (\'あ\' U+3042)'))
+  })
+})
+
+describe('mixed encoding', () => {
+  const spaces = (n: number) => ' '.repeat(n)
+  const zeros = (n: number) => '0'.repeat(n)
+
+  const getTestData = () => {
+    const header = '19110000000000ｼﾞﾖﾝ ﾄﾞｳ                                00000000               000               00000000                 \r\n'
+    const trailer = '8' + zeros(54) + spaces(65) + '\r\n'
+    const end = '9' + spaces(119) + '\r\n'
+    strictEqual(header.length, 120 + 2) // +2 for CRLF
+    strictEqual(trailer.length, 120 + 2)
+    strictEqual(end.length, 120 + 2)
+
+    const part1 = encodeJis(header + trailer) // codeType = 1 (JIS)
+    const part2 = encodeEbcdic('1912' + header.slice(4) + trailer) // codeType = 2 (EBCDIC)
+    const testData = new Uint8Array([...part1, ...part2, ...encodeJis(end)])
+    return testData
+  }
+
+  test('decode', () => {
+    const decoded = decodeDocument(getTestData())
+    strictEqual(decoded.rows.length, 5) // 2 * (header + trailer) + end
+    strictEqual(decoded.rows[0][4], 'ｼﾞﾖﾝ ﾄﾞｳ' + spaces(40 - 8)) // clientName
+    strictEqual(decoded.rows[2][4], 'ｼﾞﾖﾝ ﾄﾞｳ' + spaces(40 - 8))
+  })
+
+  test('encode', () => {
+    const testData = getTestData()
+    const decoded = decodeDocument(testData)
+    const encoded = encodeDocument(decoded.rows, decoded.rows.map(fields => getRecordType(fields)))
+    deepEqual(encoded, testData)
+  })
+})
+
+describe('ebcdic encoding', () => {
+  const s = 'ｼﾞﾖﾝ ﾄﾞｳ'
+  test.skip('roundtrip', () => {
+    strictEqual(decodeEbcdic(encodeEbcdic(s)), s)
+  })
+  test('decode', () => {
+    strictEqual(decodeEbcdic(new Uint8Array([0x40])), ' ')
+    strictEqual(decodeEbcdic(new Uint8Array([0xC1, 0xC2, 0xC3])), 'ABC')
+    strictEqual(decodeEbcdic(new Uint8Array([0x95, 0xBE])), 'ﾄﾞ')
+  })
+  test('encode', () => {
+    deepEqual(encodeEbcdic(' '), new Uint8Array([0x40]))
+    deepEqual(encodeEbcdic('ABC'), new Uint8Array([0xC1, 0xC2, 0xC3]))
+    deepEqual(encodeEbcdic('ﾄﾞ'), new Uint8Array([0x95, 0xBE]))
   })
 })

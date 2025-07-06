@@ -1,4 +1,4 @@
-import { decodeJis, encodeJis } from './util/encoding'
+import { decodeEbcdic, decodeJis, encodeEbcdic, encodeJis } from './util/encoding'
 import { Result } from './util/result'
 
 export const RecordTypes = {
@@ -6,6 +6,11 @@ export const RecordTypes = {
   Data: 2,
   Trailer: 8,
   End: 9,
+}
+
+export const CodeTypes = {
+  Jis: 0,
+  Ebcdic: 1,
 }
 
 type Fields = string[]
@@ -106,6 +111,7 @@ export function decodeDocument(input: Uint8Array): { rows: string[][], errors: D
 
   const rows: string[][] = []
   let index = 0
+  let currentCodeType = CodeTypes.Jis
 
   function lookaheadLineBreak(): number {
     if (index + 2 <= input.length && input[index] === CR && input[index + 1] === LF) {
@@ -163,9 +169,22 @@ export function decodeDocument(input: Uint8Array): { rows: string[][], errors: D
     const recordBytes = nextRecord()
     if (!recordBytes) break
 
-    const recordType = decodeAsciiDigit(recordBytes![0])
+    if (recordBytes![0] === 0x31 // type = 1 (header) in JIS
+      && recordBytes![3] === 0x31) { // codeType = 1 (JIS) in JIS
+      currentCodeType = CodeTypes.Jis
+    }
+    if (recordBytes![0] === 0xF1 // type = 1 (header)
+      && recordBytes![3] === 0xF2
+    ) { // codeType = 2 in EBCDIC
+      currentCodeType = CodeTypes.Ebcdic
+    }
+
+    const recordType = currentCodeType === CodeTypes.Jis
+      ? recordBytes![0] - 0x30
+      : recordBytes![0] - 0xF0
+
     const fieldDefs = isValidRecordType(recordType) ? recordTypeToFieldDefs(recordType) : UnknownFieldDefs
-    const fields = decodeRecord(recordBytes!, fieldDefs)
+    const fields = decodeRecord(recordBytes!, fieldDefs, currentCodeType)
     rows.push(fields)
 
     rowIndex++
@@ -175,7 +194,7 @@ export function decodeDocument(input: Uint8Array): { rows: string[][], errors: D
   return { rows, errors }
 }
 
-function decodeRecord(record: Uint8Array, fieldDefs: FieldDef[]): string[] {
+function decodeRecord(record: Uint8Array, fieldDefs: FieldDef[], currentCodeType: number): string[] {
   _assert(record.length === RECORD_LEN)
   const fields: string[] = []
   let bi = 0 // byte index
@@ -184,7 +203,7 @@ function decodeRecord(record: Uint8Array, fieldDefs: FieldDef[]): string[] {
     _assert(fi < fieldDefs.length)
     const f = fieldDefs[fi]
     const chunk = record.slice(bi, bi + f.size)
-    const value = decodeJis(chunk) // TODO: EBCDIC
+    const value = currentCodeType === CodeTypes.Jis ? decodeJis(chunk) : decodeEbcdic(chunk)
     fields.push(value)
     bi += f.size
     fi++
@@ -195,9 +214,17 @@ function decodeRecord(record: Uint8Array, fieldDefs: FieldDef[]): string[] {
 export function encodeDocument(table: string[][], tableDef: FieldDef[][]): Uint8Array {
   _assert(table.length === tableDef.length)
   let out: number[] = []
+  let currentCodeType = CodeTypes.Jis
   for (let i = 0; i < tableDef.length; i++) {
     const row = table[i], fieldDefs = tableDef[i]
-    writeRecord(row, fieldDefs, out)
+    if (row[0] === '1' && row[2] === '1') { // type, codeType
+      console.log('codeType = jis')
+      currentCodeType = CodeTypes.Jis
+    } else if (row[0] === '1' && row[2] === '2') { // type, codeType
+      console.log('codeType = ebcdic')
+      currentCodeType = CodeTypes.Ebcdic
+    }
+    writeRecord(row, fieldDefs, currentCodeType, out)
     if (WRITE_CRLF) {
       out.push(CR, LF)
     }
@@ -205,23 +232,25 @@ export function encodeDocument(table: string[][], tableDef: FieldDef[][]): Uint8
   return Uint8Array.from(out)
 }
 
-function writeRecord(fields: string[], fieldDefs: FieldDef[], out: number[]) {
+function writeRecord(fields: string[], fieldDefs: FieldDef[], codeType: number, out: number[]) {
   _assert(fields.length === fieldDefs.length)
+  const encode = codeType === CodeTypes.Jis ? encodeJis : encodeEbcdic
+
   for (let fi = 0; fi < fieldDefs.length; fi++) {
     const f = fieldDefs[fi]
-    let code = encodeJis(fields[fi]) // TODO: EBCDIC
+    let code = encode(fields[fi])
 
     if (f.type === 'N') {
       if (code.byteLength > f.size) {
         code = code.slice(code.byteLength - f.size, code.byteLength) // truncate start
       } else if (code.byteLength < f.size) {
-        code = Uint8Array.from([...encodeJis('0'.repeat(f.size - code.byteLength)), ...code]) // pad start
+        code = Uint8Array.from([...encode('0'.repeat(f.size - code.byteLength)), ...code]) // pad start
       }
     } else if (f.type === 'C') {
       if (code.byteLength > f.size) {
         code = code.slice(0, f.size) // truncate end
       } else if (code.byteLength < f.size) {
-        code = Uint8Array.from([...code, ...encodeJis(' '.repeat(f.size - code.byteLength))]) // pad end
+        code = Uint8Array.from([...code, ...encode(' '.repeat(f.size - code.byteLength))]) // pad end
       }
     }
     out.push(...code)
@@ -235,6 +264,11 @@ function isValidRecordType(recordType: number): boolean {
     || recordType === RecordTypes.Data
     || recordType === RecordTypes.Trailer
     || recordType === RecordTypes.End
+}
+
+function isValidCodeType(codeType: number): boolean {
+  return codeType === CodeTypes.Jis
+    || codeType === CodeTypes.Ebcdic
 }
 
 function recordTypeToFieldDefs(recordType: number): FieldDef[] {
@@ -263,12 +297,7 @@ export function getRecordType(fields: string[]) {
 
 const LF = 0x0A
 const CR = 0x0D
-const DIGIT_ZERO = 0x30
 const RECORD_LEN = 120
-
-function decodeAsciiDigit(code: number): number {
-  return code - DIGIT_ZERO
-}
 
 export function validateDocument(table: Fields[]): TableError {
   const errors: TableError = { fieldErrors: [] }
