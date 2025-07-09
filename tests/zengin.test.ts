@@ -32,12 +32,22 @@ describe('decoding', () => {
   })
 })
 
-test('encode', () => {
-  const input = encodeJis(testData)
-  const d = decodeDocument(input)
-  const definition = d.rows.map(row => getRecordType(row))
-  const encoded = encodeDocument(d.rows, definition)
-  deepStrictEqual(encoded, input)
+describe('encoding', () => {
+  test('encode', () => {
+    const input = encodeJis(testData)
+    const d = decodeDocument(input)
+    const definition = d.rows.map(row => getRecordType(row))
+    const encoded = encodeDocument(d.rows, definition, { linebreak: 'CRLF' })
+    deepEqual(encoded, input)
+  })
+
+  test('no line breaks', () => {
+    const input = encodeJis(testData.replaceAll('\r\n', ''))
+    const d = decodeDocument(input)
+    const definition = d.rows.map(row => getRecordType(row))
+    const encoded = encodeDocument(d.rows, definition, { linebreak: 'none' })
+    deepEqual(encoded, input)
+  })
 })
 
 describe('validate record type ordering', () => {

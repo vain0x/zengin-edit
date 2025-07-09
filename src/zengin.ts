@@ -192,17 +192,20 @@ function decodeRecord(record: Uint8Array, fieldDefs: FieldDef[]): string[] {
   return fields
 }
 
-export function encodeDocument(table: string[][], tableDef: FieldDef[][]): Uint8Array {
+export function encodeDocument(table: string[][], tableDef: FieldDef[][], options?: EncodeDocumentOptions): Uint8Array {
   _assert(table.length === tableDef.length)
+  const linebreak = (options?.linebreak ?? 'CRLF') === 'CRLF' ? [CR, LF] : []
   let out: number[] = []
   for (let i = 0; i < tableDef.length; i++) {
     const row = table[i], fieldDefs = tableDef[i]
     writeRecord(row, fieldDefs, out)
-    if (WRITE_CRLF) {
-      out.push(CR, LF)
-    }
+    out.push(...linebreak)
   }
   return Uint8Array.from(out)
+}
+
+export interface EncodeDocumentOptions {
+  linebreak?: 'CRLF' | 'none' | null
 }
 
 function writeRecord(fields: string[], fieldDefs: FieldDef[], out: number[]) {
@@ -227,8 +230,6 @@ function writeRecord(fields: string[], fieldDefs: FieldDef[], out: number[]) {
     out.push(...code)
   }
 }
-
-const WRITE_CRLF = true
 
 function isValidRecordType(recordType: number): boolean {
   return recordType === RecordTypes.Header

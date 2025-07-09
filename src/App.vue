@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { mdiAlert } from '@mdi/js'
 import base64js from 'base64-js'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import CellEditor from './components/CellEditor.vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
@@ -13,6 +13,12 @@ const filename = ref('untitled.txt')
 const currentTable = ref<Fields[]>([])
 const textData = ref('')
 const decodeErrors = ref<DecodeError[]>([])
+
+const selectedLinebreakOption = ref('CRLF')
+const linebreakOptions = [
+  { value: 'CRLF', title: 'CRLF' },
+  { value: 'none', title: 'None' },
+]
 
 function onFileChange(ev: Event) {
   const inputEl = ev.target as HTMLInputElement & { type: 'file' }
@@ -163,8 +169,18 @@ function onTableChange(value: string, rowIndex: number, colIndex: number) {
       })
     })
   }
-  textData.value = decodeJis(encodeDocument(currentTable.value, currentTable.value.map(row => getRecordType(row))))
+  updateTextData()
 }
+
+function updateTextData() {
+  const linebreak = selectedLinebreakOption.value as 'CRLF' | 'none'
+
+  textData.value = decodeJis(encodeDocument(currentTable.value, currentTable.value.map(row => getRecordType(row)), { linebreak }))
+}
+
+watch(selectedLinebreakOption, () => {
+  updateTextData()
+})
 
 // initialize
 setText(exampleData)
@@ -183,7 +199,16 @@ setText(exampleData)
 
     <v-text-field label="Filename" v-model="filename" />
 
-    <v-textarea label="Text" :model-value="textData" @input="onTextChange" rows="4" />
+    <div>
+      <v-textarea label="Text" :model-value="textData" @input="onTextChange" rows="4" />
+
+      <div style="margin-block-start: -8px; display: flex;">
+        <div style="margin-inline-start: auto; width: 200px;">
+          <v-select label="Linebreak" v-model="selectedLinebreakOption" :items="linebreakOptions"
+            density="comfortable" />
+        </div>
+      </div>
+    </div>
 
     <v-alert v-if="decodeErrors.length !== 0" type="error" style="margin-block-end: 32px;">
       Some lines don't have 120 bytes.
