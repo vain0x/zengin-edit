@@ -19,8 +19,8 @@ body {
 }
 
 .control-panel {
-  padding: 16px;
   display: flex;
+  gap: 16px;
 }
 
 .dt-container {

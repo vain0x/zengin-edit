@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { mdiAlert } from '@mdi/js'
+import { mdiAlert, mdiDownload, mdiPaperclip } from '@mdi/js'
 import base64js from 'base64-js'
 import { computed, ref, watch } from 'vue'
 import CellEditor from './components/CellEditor.vue'
@@ -16,9 +16,13 @@ const decodeErrors = ref<DecodeError[]>([])
 
 const selectedLinebreakOption = ref('CRLF')
 const linebreakOptions = [
-  { value: 'CRLF', title: 'CRLF' },
-  { value: 'none', title: 'None' },
+  { value: 'CRLF', title: 'CR+LF' },
+  { value: 'none', title: 'なし' },
 ]
+
+function selectFile() {
+  document.querySelector<HTMLInputElement>('input[type=file]')?.click()
+}
 
 function onFileChange(ev: Event) {
   const inputEl = ev.target as HTMLInputElement & { type: 'file' }
@@ -53,7 +57,7 @@ function onDownload() {
 }
 
 function onReset() {
-  const confirmed = window.confirm('Reset?')
+  const confirmed = window.confirm('編集内容をリセットしますか？')
   if (confirmed) {
     setText(exampleData)
   }
@@ -187,49 +191,96 @@ setText(exampleData)
 </script>
 
 <template>
-  <div class="container">
-    <h1>Zengin Edit (Account Transfer)</h1>
-
-    <div class="control-panel">
-      <input type="file" @change="onFileChange" />
-      <v-btn text="Download" color="primary" @click="onDownload"></v-btn>
-      <div style="width: 48px"></div>
-      <v-btn density="compact" @click="onReset">Reset</v-btn>
-    </div>
-
-    <v-text-field label="Filename" v-model="filename" />
-
-    <div>
-      <v-textarea label="Text" :model-value="textData" @input="onTextChange" rows="4" />
-
-      <div style="margin-block-start: -8px; display: flex;">
-        <div style="margin-inline-start: auto; width: 200px;">
-          <v-select label="Linebreak" v-model="selectedLinebreakOption" :items="linebreakOptions"
-            density="comfortable" />
+  <v-app>
+    <v-app-bar density="compact">
+      <template #title>
+        <div style="font-weight: bold;">
+          Zengin Edit
+          <span style="font: 1rem normal; color: #4D4D4D;">(15. 預金口座振替)</span>
         </div>
-      </div>
-    </div>
+      </template>
+      <template #append>
+        <div style="color: red;">
+          ※このツールは非公式です。動作の保証はありません
+        </div>
+      </template>
+    </v-app-bar>
 
-    <v-alert v-if="decodeErrors.length !== 0" type="error" style="margin-block-end: 32px;">
-      Some lines don't have 120 bytes.
-      {{'(Line numbers: ' + decodeErrors.map(e => e.rowIndex + 1).join(', ') + ').'}}
-    </v-alert>
+    <v-main>
+      <v-container>
+        <div class="control-panel">
+          <div style="position: relative;">
+            <v-btn title="Open file" variant="elevated" color="primary" height="40px" @click="selectFile">
+              <v-icon :icon="mdiPaperclip" size="24"></v-icon>
+              開く
+            </v-btn>
+            <input type="file" style="position: absolute; inset: 0; opacity: 0;" @change="onFileChange" />
+          </div>
+          <v-text-field label="Filename" v-model="filename" variant="filled" density="compact" style="flex: 1" />
+          <v-btn title="Download" variant="elevated" color="primary" @click="onDownload">
+            <v-icon :icon="mdiDownload"></v-icon>
+            ダウンロード
+          </v-btn>
+          <!-- <v-btn @click="onReset">
+            <v-icon :icon="mdiClose"></v-icon>
+            リセット
+          </v-btn> -->
+        </div>
 
-    <h2>
-      Table
-      <v-icon v-if="hasError" :icon="mdiAlert" color="red" size="20" />
-    </h2>
-    <div class="dt-container">
-      <div v-for="(row, rowIndex) in currentTable" class="dt-row" :data-row="rowIndex">
-        <CellEditor v-for="(field, colIndex) in row" :model-value="field" :field-def="getFieldDef(rowIndex, colIndex)"
-          :rowIndex="rowIndex" :colIndex="colIndex" :error="getCellErrorAt(rowIndex, colIndex)"
-          @update:model-value="(value: string) => onTableChange(value, rowIndex, colIndex)" />
-      </div>
+        <div>
+          <v-textarea label="Text" :model-value="textData" @input="onTextChange" rows="4" />
+
+          <div style="margin-block-start: -1rem; display: flex;">
+            <div style="margin-inline-start: auto; width: 200px;">
+              <v-select label="改行" v-model="selectedLinebreakOption" :items="linebreakOptions" />
+            </div>
+          </div>
+        </div>
+
+        <v-alert v-if="decodeErrors.length !== 0" type="error" style="margin-block-end: 32px;">
+          Some lines don't have 120 bytes.
+          {{'(Line numbers: ' + decodeErrors.map(e => e.rowIndex + 1).join(', ') + ').'}}
+        </v-alert>
+
+        <h2 style="display: flex; align-items: center; gap: 4px;">
+          <div style="font-size: 1rem;">
+            テーブル表示
+          </div>
+          <v-icon v-if="hasError" :icon="mdiAlert" color="red" size="20" />
+        </h2>
+        <div v-for="(row, rowIndex) in currentTable" class="dt-row" :data-row="rowIndex">
+          <CellEditor v-for="(field, colIndex) in row" :model-value="field" :field-def="getFieldDef(rowIndex, colIndex)"
+            :rowIndex="rowIndex" :colIndex="colIndex" :error="getCellErrorAt(rowIndex, colIndex)"
+            @update:model-value="(value: string) => onTableChange(value, rowIndex, colIndex)" />
+        </div>
+        <div v-if="currentTable.length === 0">
+          <div style="color: #4D4D4D;">データがありません。</div>
+        </div>
+      </v-container>
+    </v-main>
+
+    <div style="background-color: #F5F5F5;">
+      <v-container>
+        <v-list>
+          <v-list-subheader>
+            詳細
+          </v-list-subheader>
+          <v-list-item>
+            レコードフォーマットの仕様は <a href="https://www.zenginkyo.or.jp/abstract/efforts/system/protocol/">全銀協のウェブサイト</a>
+            にあるPDFの「15. 預金口座振替（依頼明細）」を参照
+          </v-list-item>
+          <v-list-item>
+            このツールは非公式です。動作の保証はありません
+            <div>・入力ファイルを正確に処理できるとはかぎりません</div>
+            <div>・ダウンロードされるファイルの内容が適切であるとはかぎりません</div>
+          </v-list-item>
+          <v-list-item>
+            文字コードは JIS のみ対応しています (EBCDIC は非対応)
+          </v-list-item>
+        </v-list>
+      </v-container>
     </div>
-  </div>
-  <div v-if="currentTable.length === 0">
-    <div>Empty data.</div>
-  </div>
+  </v-app>
 </template>
 
 <style scoped></style>
