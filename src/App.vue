@@ -36,7 +36,7 @@ function onFileChange(ev: Event) {
       const text = decodeJis(new Uint8Array(bytes))
       console.log('decoded', text.length, text)
       filename.value = file.name
-      textData.value = text
+      setText(text)
     })()
   }
 }
