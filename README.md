@@ -20,6 +20,10 @@
 - レコードフォーマットの仕様は [全銀協のウェブサイト](https://www.zenginkyo.or.jp/abstract/efforts/system/protocol/) にあるPDFの「15. 預金口座振替（依頼明細）」を参照してください
 - 文字コードは JIS のみ対応しています (EBCDIC は非対応)
 
+## 開発
+
+開発面のドキュメントは [development.md](development.md) にある
+
 <details>
 <summary>create-vite-app</summary>
 

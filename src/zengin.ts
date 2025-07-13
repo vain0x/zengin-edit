@@ -11,10 +11,12 @@ export const RecordTypes = {
 type Fields = string[]
 
 export interface FieldDef {
+  /** Data type (N: number, C: character) */
   type: 'N' | 'C'
   size: number
   name: string
   display: string
+  /** UI type (default: text-field) */
   ui?: FieldUi
 }
 
@@ -205,6 +207,7 @@ export function encodeDocument(table: string[][], tableDef: FieldDef[][], option
 }
 
 export interface EncodeDocumentOptions {
+  /** (defaults to CRLF) */
   linebreak?: 'CRLF' | 'none' | null
 }
 
@@ -264,7 +267,7 @@ export function getRecordType(fields: string[]) {
 
 const LF = 0x0A
 const CR = 0x0D
-const DIGIT_ZERO = 0x30
+const DIGIT_ZERO = 0x30 // '0'
 const RECORD_LEN = 120
 
 function decodeAsciiDigit(code: number): number {
