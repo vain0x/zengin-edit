@@ -201,7 +201,7 @@ setText(exampleData)
       </template>
       <template #append>
         <div style="color: red;">
-          ※このツールは非公式です。動作の保証はありません
+          ※非公式のツールです。動作の保証はありません
         </div>
       </template>
     </v-app-bar>
@@ -270,9 +270,12 @@ setText(exampleData)
             にあるPDFの「15. 預金口座振替（依頼明細）」を参照
           </v-list-item>
           <v-list-item>
-            このツールは非公式です。動作の保証はありません
+            非公式のツールです。動作の保証はありません
             <div>・入力ファイルを正確に処理できるとはかぎりません</div>
             <div>・ダウンロードされるファイルの内容が適切であるとはかぎりません</div>
+          </v-list-item>
+          <v-list-item>
+            個人情報を含むデータをアップロードしないでください
           </v-list-item>
           <v-list-item>
             文字コードは JIS のみ対応しています (EBCDIC は非対応)
