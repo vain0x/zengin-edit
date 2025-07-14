@@ -23,20 +23,26 @@ export interface FieldDef {
 export type FieldUi = {
   type: 'text-field'
 } | {
-  type: 'select'
-  options: { value: string; title: string }[]
+  type: 'text'
+  getText: (value: string) => string
 }
 
 const typeUi: FieldUi = {
-  type: 'select',
-  options: ([
-    { value: RecordTypes.Header, title: 'ヘッダー' },
-    { value: RecordTypes.Data, title: 'データ' },
-    { value: RecordTypes.Trailer, title: 'トレイラー' },
-    { value: RecordTypes.End, title: 'エンド' },
-  ] satisfies { value: number; title: string }[]).map(option => {
-    return { value: option.value.toString(), title: `${option.value}: ${option.title}` }
-  })
+  type: 'text',
+  getText: value => {
+    let hint = ''
+    switch (+value) {
+      case RecordTypes.Header: hint = 'ヘッダー'; break
+      case RecordTypes.Data: hint = 'データ'; break
+      case RecordTypes.Trailer: hint = 'トレイラー'; break
+      case RecordTypes.End: hint = 'エンド'; break
+      default: break
+    }
+    if (hint) {
+      return `${value}:${hint}`
+    }
+    return value
+  },
 }
 
 const HeaderFieldDefs: FieldDef[] = [

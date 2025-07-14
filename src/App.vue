@@ -130,40 +130,17 @@ const trailerRecords = computed(() => {
 })
 
 function onTableChange(value: string, rowIndex: number, colIndex: number) {
-  let tableUpdated = false
-
-  // type change
-  if (colIndex === 0) {
-    let fields = currentTable.value[rowIndex]
-    const fieldDef = getRecordType(fields)
-    fields = fields.map((field, index) => index === 0 ? value : field)
-    const encodedRow = encodeDocument([fields], [fieldDef])
-    const decoded = decodeDocument(encodedRow)
-    const updatedRow = decoded.rows.at(0)
-    if (updatedRow != null) {
-      currentTable.value = currentTable.value.map((row, ri) => {
-        if (ri !== rowIndex) {
-          return row
-        }
-        return updatedRow
-      })
-      tableUpdated = true
+  currentTable.value = currentTable.value.map((row, ri) => {
+    if (ri !== rowIndex) {
+      return row
     }
-  }
-
-  if (!tableUpdated) {
-    currentTable.value = currentTable.value.map((row, ri) => {
-      if (ri !== rowIndex) {
-        return row
+    return row.map((col, ci) => {
+      if (ci !== colIndex) {
+        return col
       }
-      return row.map((col, ci) => {
-        if (ci !== colIndex) {
-          return col
-        }
-        return value
-      })
+      return value
     })
-  }
+  })
   updateTextData()
 }
 
