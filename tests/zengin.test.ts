@@ -157,8 +157,8 @@ describe('trailer amounts', () => {
 })
 
 describe('validateNumberField', () => {
-  const n1: FieldDef = { type: 'N', size: 1, name: 'type', display: 'N(1)' }
-  const n3: FieldDef = { type: 'N', size: 3, name: 'type', display: 'N(3)' }
+  const n1: FieldDef = { type: 'N', size: 1, name: 'type', title: 'N(1)' }
+  const n3: FieldDef = { type: 'N', size: 3, name: 'type', title: 'N(3)' }
 
   test('ok', () => {
     strictEqual(validateNumberField('0', n1).type, 'ok')
@@ -176,9 +176,9 @@ describe('validateNumberField', () => {
 })
 
 describe('validateCharField', () => {
-  const c1: FieldDef = { type: 'C', size: 1, name: 'type', display: 'C(1)' }
-  const c3: FieldDef = { type: 'C', size: 3, name: 'type', display: 'C(3)' }
-  const c99: FieldDef = { type: 'C', size: 99, name: 'type', display: 'C(99)' }
+  const c1: FieldDef = { type: 'C', size: 1, name: 'type', title: 'C(1)' }
+  const c3: FieldDef = { type: 'C', size: 3, name: 'type', title: 'C(3)' }
+  const c99: FieldDef = { type: 'C', size: 99, name: 'type', title: 'C(99)' }
 
   test('ok', () => {
     strictEqual(validateCharField(' ', c1).type, 'ok')

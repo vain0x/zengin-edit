@@ -15,7 +15,7 @@ export interface FieldDef {
   type: 'N' | 'C'
   size: number
   name: string
-  display: string
+  title: string
   /** UI type (default: text-field) */
   ui?: FieldUi
 }
@@ -40,57 +40,57 @@ const typeUi: FieldUi = {
 }
 
 const HeaderFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
-  { type: 'N', size: 2, name: 'shubetsuCode', display: '種別コード' },
-  { type: 'N', size: 1, name: 'codeType', display: 'コード区分' },
-  { type: 'N', size: 10, name: 'clientCode', display: '委託者コード' },
-  { type: 'C', size: 40, name: 'clientName', display: '委託者名' },
-  { type: 'N', size: 4, name: 'withdrawDate', display: '引落日' },
-  { type: 'N', size: 4, name: 'bankCode', display: '取引銀行番号' },
-  { type: 'C', size: 15, name: 'bankName', display: '取引銀行名' },
-  { type: 'N', size: 3, name: 'branchCode', display: '取引支店番号' },
-  { type: 'C', size: 15, name: 'branchName', display: '取引支店名' },
-  { type: 'N', size: 1, name: 'clientAccountType', display: '預金種目(委託者)' },
-  { type: 'N', size: 7, name: 'clientAccountNumber', display: '口座番号(委託者)' },
-  { type: 'C', size: 17, name: 'dummy', display: 'ダミー' }
+  { type: 'N', size: 1, name: 'type', title: 'データ区分', ui: typeUi },
+  { type: 'N', size: 2, name: 'shubetsuCode', title: '種別コード' },
+  { type: 'N', size: 1, name: 'codeType', title: 'コード区分' },
+  { type: 'N', size: 10, name: 'clientCode', title: '委託者コード' },
+  { type: 'C', size: 40, name: 'clientName', title: '委託者名' },
+  { type: 'N', size: 4, name: 'withdrawDate', title: '引落日' },
+  { type: 'N', size: 4, name: 'bankCode', title: '取引銀行番号' },
+  { type: 'C', size: 15, name: 'bankName', title: '取引銀行名' },
+  { type: 'N', size: 3, name: 'branchCode', title: '取引支店番号' },
+  { type: 'C', size: 15, name: 'branchName', title: '取引支店名' },
+  { type: 'N', size: 1, name: 'clientAccountType', title: '預金種目(委託者)' },
+  { type: 'N', size: 7, name: 'clientAccountNumber', title: '口座番号(委託者)' },
+  { type: 'C', size: 17, name: 'dummy', title: 'ダミー' }
 ]
 
 export const DataFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
-  { type: 'N', size: 4, name: 'payerBankCode', display: '引落銀行番号' },
-  { type: 'C', size: 15, name: 'payerBankName', display: '引落銀行名' },
-  { type: 'N', size: 3, name: 'payerBranchCode', display: '引落支店番号' },
-  { type: 'C', size: 15, name: 'payerBranchName', display: '引落支店名' },
-  { type: 'C', size: 4, name: 'dummy1', display: 'ダミー' },
-  { type: 'N', size: 1, name: 'accountType', display: '預金種目' },
-  { type: 'N', size: 7, name: 'accountNumber', display: '口座番号' },
-  { type: 'C', size: 30, name: 'accountHolder', display: '預金者名' },
-  { type: 'N', size: 10, name: 'amount', display: '引落金額' },
-  { type: 'N', size: 1, name: 'newCode', display: '新規コード' },
-  { type: 'N', size: 20, name: 'customerCode', display: '顧客番号' },
-  { type: 'N', size: 1, name: 'resultCode', display: '振替結果コード' },
-  { type: 'C', size: 8, name: 'dummy2', display: 'ダミー' }
+  { type: 'N', size: 1, name: 'type', title: 'データ区分', ui: typeUi },
+  { type: 'N', size: 4, name: 'payerBankCode', title: '引落銀行番号' },
+  { type: 'C', size: 15, name: 'payerBankName', title: '引落銀行名' },
+  { type: 'N', size: 3, name: 'payerBranchCode', title: '引落支店番号' },
+  { type: 'C', size: 15, name: 'payerBranchName', title: '引落支店名' },
+  { type: 'C', size: 4, name: 'dummy1', title: 'ダミー' },
+  { type: 'N', size: 1, name: 'accountType', title: '預金種目' },
+  { type: 'N', size: 7, name: 'accountNumber', title: '口座番号' },
+  { type: 'C', size: 30, name: 'accountHolder', title: '預金者名' },
+  { type: 'N', size: 10, name: 'amount', title: '引落金額' },
+  { type: 'N', size: 1, name: 'newCode', title: '新規コード' },
+  { type: 'N', size: 20, name: 'customerCode', title: '顧客番号' },
+  { type: 'N', size: 1, name: 'resultCode', title: '振替結果コード' },
+  { type: 'C', size: 8, name: 'dummy2', title: 'ダミー' }
 ]
 
 export const TrailerFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
-  { type: 'N', size: 6, name: 'totalCount', display: '合計件数' },
-  { type: 'N', size: 12, name: 'totalAmount', display: '合計金額' },
-  { type: 'N', size: 6, name: 'transferredCount', display: '振替済件数' },
-  { type: 'N', size: 12, name: 'transferredAmount', display: '振替済金額' },
-  { type: 'N', size: 6, name: 'failedCount', display: '振替不能件数' },
-  { type: 'N', size: 12, name: 'failedAmount', display: '振替不能金額' },
-  { type: 'C', size: 65, name: 'dummy', display: 'ダミー' }
+  { type: 'N', size: 1, name: 'type', title: 'データ区分', ui: typeUi },
+  { type: 'N', size: 6, name: 'totalCount', title: '合計件数' },
+  { type: 'N', size: 12, name: 'totalAmount', title: '合計金額' },
+  { type: 'N', size: 6, name: 'transferredCount', title: '振替済件数' },
+  { type: 'N', size: 12, name: 'transferredAmount', title: '振替済金額' },
+  { type: 'N', size: 6, name: 'failedCount', title: '振替不能件数' },
+  { type: 'N', size: 12, name: 'failedAmount', title: '振替不能金額' },
+  { type: 'C', size: 65, name: 'dummy', title: 'ダミー' }
 ]
 
 export const EndFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
-  { type: 'C', size: 119, name: 'dummy', display: 'ダミー' }
+  { type: 'N', size: 1, name: 'type', title: 'データ区分', ui: typeUi },
+  { type: 'C', size: 119, name: 'dummy', title: 'ダミー' }
 ]
 
 export const UnknownFieldDefs: FieldDef[] = [
-  { type: 'N', size: 1, name: 'type', display: 'データ区分', ui: typeUi },
-  { type: 'C', size: 119, name: 'unknown', display: '不明' }
+  { type: 'N', size: 1, name: 'type', title: 'データ区分', ui: typeUi },
+  { type: 'C', size: 119, name: 'unknown', title: '不明' }
 ]
 
 export interface DecodeError {

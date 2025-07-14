@@ -74,7 +74,7 @@ function getFieldDef(rowIndex: number, colIndex: number): FieldDef {
 }
 
 const unknownField: FieldDef = {
-  type: 'C', name: 'unknown', size: 120, display: '不明',
+  type: 'C', name: 'unknown', size: 120, title: '不明',
 }
 
 const rowTypes = computed(() => {

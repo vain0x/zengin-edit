@@ -27,9 +27,9 @@ function onUpdate(value: string) {
 
 <template>
   <div class="dt-cell" :data-col="colIndex">
-    <v-text-field v-if="ui.type === 'text-field'" :label="fieldDef.display" :hint="hint" :model-value="modelValue"
+    <v-text-field v-if="ui.type === 'text-field'" :label="fieldDef.title" :hint="hint" :model-value="modelValue"
       :error-messages="error || undefined" density="compact" variant="outlined" @update:model-value="onUpdate" />
-    <v-select v-if="ui.type === 'select'" :label="fieldDef.display" :hint="hint" :model-value="modelValue"
+    <v-select v-if="ui.type === 'select'" :label="fieldDef.title" :hint="hint" :model-value="modelValue"
       :error-messages="error || undefined" density="compact" @update:model-value="onUpdate"
       :items="ui.options"></v-select>
   </div>
