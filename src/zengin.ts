@@ -23,32 +23,71 @@ export interface FieldDef {
 export type FieldUi = {
   type: 'text-field'
 } | {
-  type: 'text'
-  getText: (value: string) => string
+  type: 'select'
+  options: { value: string; title: string }[]
+  readonly?: boolean
 }
 
 const typeUi: FieldUi = {
-  type: 'text',
-  getText: value => {
-    let hint = ''
-    switch (+value) {
-      case RecordTypes.Header: hint = 'ヘッダー'; break
-      case RecordTypes.Data: hint = 'データ'; break
-      case RecordTypes.Trailer: hint = 'トレイラー'; break
-      case RecordTypes.End: hint = 'エンド'; break
-      default: break
-    }
-    if (hint) {
-      return `${value}:${hint}`
-    }
-    return value
-  },
+  type: 'select',
+  options: [
+    { value: RecordTypes.Header.toString(), title: 'ヘッダー' },
+    { value: RecordTypes.Data.toString(), title: 'データ' },
+    { value: RecordTypes.Trailer.toString(), title: 'トレイラー' },
+    { value: RecordTypes.End.toString(), title: 'エンド' },
+  ],
+  readonly: true,
+}
+
+const shubetsuCodeUi: FieldUi = {
+  type: 'select',
+  options: [
+    { value: '91', title: '預金口座振替' },
+  ],
+  readonly: true,
+}
+
+const codeType: FieldUi = {
+  type: 'select',
+  options: [
+    { value: '0', title: 'JIS' },
+    { value: '1', title: 'EBCDIC' },
+  ],
+  readonly: true,
+}
+
+const clientAccountTypeUi: FieldUi = {
+  type: 'select',
+  options: [
+    { value: '1', title: '普通預金' },
+    { value: '2', title: '当座預金' },
+    { value: '9', title: 'その他' },
+  ],
+}
+
+const accountTypeUi: FieldUi = {
+  type: 'select',
+  options: [
+    { value: '1', title: '普通預金' },
+    { value: '2', title: '当座預金' },
+    { value: '3', title: '納税準備預金' },
+    { value: '9', title: 'その他' },
+  ],
+}
+
+const newCodeUi: FieldUi = {
+  type: 'select',
+  options: [
+    { value: '1', title: '第1回引落分' },
+    { value: '2', title: '変更分' },
+    { value: '0', title: 'その他' },
+  ],
 }
 
 const HeaderFieldDefs: FieldDef[] = [
   { type: 'N', size: 1, name: 'type', title: 'データ区分', ui: typeUi },
-  { type: 'N', size: 2, name: 'shubetsuCode', title: '種別コード' },
-  { type: 'N', size: 1, name: 'codeType', title: 'コード区分' },
+  { type: 'N', size: 2, name: 'shubetsuCode', title: '種別コード', ui: shubetsuCodeUi },
+  { type: 'N', size: 1, name: 'codeType', title: 'コード区分', ui: codeType },
   { type: 'N', size: 10, name: 'clientCode', title: '委託者コード' },
   { type: 'C', size: 40, name: 'clientName', title: '委託者名' },
   { type: 'N', size: 4, name: 'withdrawDate', title: '引落日' },
@@ -56,7 +95,7 @@ const HeaderFieldDefs: FieldDef[] = [
   { type: 'C', size: 15, name: 'bankName', title: '取引銀行名' },
   { type: 'N', size: 3, name: 'branchCode', title: '取引支店番号' },
   { type: 'C', size: 15, name: 'branchName', title: '取引支店名' },
-  { type: 'N', size: 1, name: 'clientAccountType', title: '預金種目(委託者)' },
+  { type: 'N', size: 1, name: 'clientAccountType', title: '預金種目(委託者)', ui: clientAccountTypeUi },
   { type: 'N', size: 7, name: 'clientAccountNumber', title: '口座番号(委託者)' },
   { type: 'C', size: 17, name: 'dummy', title: 'ダミー' }
 ]
@@ -68,11 +107,11 @@ export const DataFieldDefs: FieldDef[] = [
   { type: 'N', size: 3, name: 'payerBranchCode', title: '引落支店番号' },
   { type: 'C', size: 15, name: 'payerBranchName', title: '引落支店名' },
   { type: 'C', size: 4, name: 'dummy1', title: 'ダミー' },
-  { type: 'N', size: 1, name: 'accountType', title: '預金種目' },
+  { type: 'N', size: 1, name: 'accountType', title: '預金種目', ui: accountTypeUi },
   { type: 'N', size: 7, name: 'accountNumber', title: '口座番号' },
   { type: 'C', size: 30, name: 'accountHolder', title: '預金者名' },
   { type: 'N', size: 10, name: 'amount', title: '引落金額' },
-  { type: 'N', size: 1, name: 'newCode', title: '新規コード' },
+  { type: 'N', size: 1, name: 'newCode', title: '新規コード', ui: newCodeUi },
   { type: 'N', size: 20, name: 'customerCode', title: '顧客番号' },
   { type: 'N', size: 1, name: 'resultCode', title: '振替結果コード' },
   { type: 'C', size: 8, name: 'dummy2', title: 'ダミー' }
