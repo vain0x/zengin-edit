@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { mdiAlert, mdiDownload, mdiPaperclip } from '@mdi/js'
 import base64js from 'base64-js'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import CellEditor from './components/CellEditor.vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
@@ -26,15 +26,11 @@ function selectFile() {
 
 function onFileChange(ev: Event) {
   const inputEl = ev.target as HTMLInputElement & { type: 'file' }
-  console.log('onFileChange', ev, inputEl, inputEl.files?.[0]?.name)
   if (inputEl.files && inputEl.files.length >= 1) {
     const file = inputEl.files[0]
     !(async () => {
       const bytes = await file.arrayBuffer()
-      console.log('file loaded', bytes.byteLength)
-
       const text = decodeJis(new Uint8Array(bytes))
-      console.log('decoded', text.length, text)
       filename.value = file.name
       setText(text)
     })()
@@ -42,7 +38,6 @@ function onFileChange(ev: Event) {
 }
 
 function onDownload() {
-  console.log('download', textData.value)
   const bytes = encodeJis(textData.value)
   const dataUrl = 'data:text/plain;base64,' + base64js.fromByteArray(bytes)
 
@@ -56,24 +51,22 @@ function onDownload() {
   a.remove()
 }
 
-function onReset() {
-  const confirmed = window.confirm('編集内容をリセットしますか？')
-  if (confirmed) {
-    setText(exampleData)
-  }
-}
-
 function onTextChange(ev: Event) {
   const inputEl = ev.target as HTMLInputElement
-  console.log('onTextChange', ev)
   setText(inputEl.value)
 }
 
+// text -> table
 function setText(text: string) {
   textData.value = text
   const decoded = decodeDocument(encodeJis(textData.value))
   currentTable.value = structuredClone(decoded.rows)
   decodeErrors.value = decoded.errors
+}
+
+function onSelectedLinebreakChange(value: string) {
+  selectedLinebreakOption.value = value
+  updateTextData()
 }
 
 function getFieldDef(rowIndex: number, colIndex: number): FieldDef {
@@ -137,8 +130,6 @@ const trailerRecords = computed(() => {
 })
 
 function onTableChange(value: string, rowIndex: number, colIndex: number) {
-  console.log('onTableChange', value, rowIndex, colIndex)
-
   let tableUpdated = false
 
   // type change
@@ -176,15 +167,12 @@ function onTableChange(value: string, rowIndex: number, colIndex: number) {
   updateTextData()
 }
 
+// table -> text
 function updateTextData() {
   const linebreak = selectedLinebreakOption.value as 'CRLF' | 'none'
 
   textData.value = decodeJis(encodeDocument(currentTable.value, currentTable.value.map(row => getRecordType(row)), { linebreak }))
 }
-
-watch(selectedLinebreakOption, () => {
-  updateTextData()
-})
 
 // initialize
 setText(exampleData)
@@ -232,7 +220,8 @@ setText(exampleData)
 
           <div style="margin-block-start: -1rem; display: flex;">
             <div style="margin-inline-start: auto; width: 200px;">
-              <v-select label="改行" v-model="selectedLinebreakOption" :items="linebreakOptions" />
+              <v-select label="改行" :model-value="selectedLinebreakOption"
+                @update:model-value="onSelectedLinebreakChange" :items="linebreakOptions" />
             </div>
           </div>
         </div>
