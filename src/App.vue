@@ -5,7 +5,7 @@ import { computed, ref } from 'vue'
 import CellEditor from './components/CellEditor.vue'
 import { exampleData } from './example'
 import { decodeJis, encodeJis } from './util/encoding'
-import { computeResult, decodeDocument, encodeDocument, getRecordType, validateDocument, type DecodeError, type FieldDef } from './zengin'
+import { computeResult, decodeDocument, encodeDocument, getRecordType, RecordTypes, validateDocument, type DecodeError, type FieldDef } from './zengin'
 
 type Fields = string[]
 
@@ -98,7 +98,7 @@ function getCellErrorAt(rowIndex: number, colIndex: number) {
     let blockIndex = 0
     for (let i = 0; i < rowIndex; i++) {
       const fields = currentTable.value[i]
-      if (fields[0] === '8') { // trailer
+      if (+fields[0] === RecordTypes.Trailer) {
         blockIndex++
       }
     }

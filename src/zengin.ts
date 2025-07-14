@@ -489,7 +489,7 @@ export const computeResult = (table: string[][]): TrailerRecord[] => {
   const records: TrailerRecord[] = []
   let current: TrailerRecord = { ...emptyTrailerRecord }
 
-  const def = getRecordType(['2'])!
+  const def = getRecordType([RecordTypes.Data.toString()])!
   const amountIndex = def.findIndex(d => d.name === 'amount')
   const resultCodeIndex = def.findIndex(d => d.name === 'resultCode')
 
