@@ -109,7 +109,7 @@ function getCellErrorAt(rowIndex: number, colIndex: number) {
       const inputValue = currentTable.value[rowIndex][colIndex]
       const computedValue = (trailer as any)[def.name]
       if (+computedValue !== +inputValue) {
-        return 'Computed: ' + computedValue
+        return '計算値: ' + computedValue
       }
     }
   }
@@ -204,8 +204,7 @@ setText(exampleData)
         </div>
 
         <v-alert v-if="decodeErrors.length !== 0" type="error" style="margin-block-end: 32px;">
-          Some lines don't have 120 bytes.
-          {{'(Line numbers: ' + decodeErrors.map(e => e.rowIndex + 1).join(', ') + ').'}}
+          {{'120バイトに満たない行があります (' + decodeErrors.map(e => e.rowIndex + 1).join(', ') + ' 行目)'}}
         </v-alert>
 
         <h2 style="display: flex; align-items: center; gap: 4px;">
@@ -220,7 +219,9 @@ setText(exampleData)
             @update:model-value="(value: string) => onTableChange(value, rowIndex, colIndex)" />
         </div>
         <div v-if="currentTable.length === 0">
-          <div style="color: #4D4D4D;">データがありません。</div>
+          <div style="color: #4D4D4D;">
+            {{ 'データがありません' }}
+          </div>
         </div>
       </v-container>
     </v-main>

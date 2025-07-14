@@ -4,7 +4,7 @@ import { encodeJis } from '../src/util/encoding'
 import { Result } from '../src/util/result'
 import { type FieldDef, type TrailerRecord, computeResult, decodeDocument, encodeDocument, getRecordType, validateCharField, validateDocument, validateNumberField } from '../src/zengin'
 
-const testData = `101John                                                                                                                 \r\n202John                                                                                                                 \r\n8                                                                                                                       \r\n9                                                                                                                       \r\n`
+const testData = `1910John                                                                                                                \r\n2                                                                                                                       \r\n8                                                                                                                       \r\n9                                                                                                                       \r\n`
 
 describe('decoding', () => {
   test('success', () => {
@@ -12,7 +12,7 @@ describe('decoding', () => {
     deepEqual(d.errors, [])
     strictEqual(d.rows.length, 4)
     strictEqual(d.rows[0][0], '1')
-    strictEqual(d.rows[0][1], '01')
+    strictEqual(d.rows[0][1], '91')
     strictEqual(d.rows[1][0], '2')
   })
 
@@ -171,7 +171,7 @@ describe('validateNumberField', () => {
     strictEqual(validateNumberField('00', n1).type, 'error')
   })
   test('bad char report', () => {
-    deepStrictEqual(validateNumberField('0x1', n3), Result.Error('invalid character at 1 (\'x\' U+0078)'))
+    deepStrictEqual(validateNumberField('0x1', n3), Result.Error('使用可能でない文字があります (\'x\', 2文字目, U+0078)'))
   })
 })
 
@@ -199,7 +199,7 @@ describe('validateCharField', () => {
     strictEqual(validateCharField('\n', c3).type, 'error')
   })
   test('bad char report', () => {
-    deepStrictEqual(validateNumberField('0x1', c3), Result.Error('invalid character at 1 (\'x\' U+0078)'))
-    deepStrictEqual(validateCharField('あ', c3), Result.Error('invalid character at 0 (\'あ\' U+3042)'))
+    deepStrictEqual(validateNumberField('0x1', c3), Result.Error('使用可能でない文字があります (\'x\', 2文字目, U+0078)'))
+    deepStrictEqual(validateCharField('あ', c3), Result.Error('使用可能でない文字があります (\'あ\', 1文字目, U+3042)'))
   })
 })

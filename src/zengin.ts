@@ -296,7 +296,7 @@ function recordTypeToFieldDefs(recordType: number): FieldDef[] {
   } else if (recordType === RecordTypes.End) {
     return EndFieldDefs
   } else {
-    throw new Error('Unknown record type')
+    throw new Error(UnknownRecordTypeError)
   }
 }
 
@@ -339,7 +339,7 @@ export function validateDocument(table: Fields[]): TableError {
       try {
         fieldDefs = recordTypeToFieldDefs(t)
       } catch {
-        errors.fieldErrors.push(['Unknown record type', ''])
+        errors.fieldErrors.push([UnknownRecordTypeError, ''])
         continue
       }
 
@@ -388,7 +388,7 @@ export function validateDocument(table: Fields[]): TableError {
     const type = +fields[0][0]
     if (!isValidRecordType(type)) {
       invalid = true
-      errors.fieldErrors[rowIndex][0] = 'Invalid record type'
+      errors.fieldErrors[rowIndex][0] = UnknownRecordTypeError
       break
     }
     switch (state) {
@@ -396,7 +396,7 @@ export function validateDocument(table: Fields[]): TableError {
         switch (type) {
           case RecordTypes.Header: state = 1; continue
           case RecordTypes.End: state = 2; continue
-          default: error = 'Expected header or end'; break
+          default: error = ExpectedHeaderOrEnd; break
         }
         break
 
@@ -404,11 +404,11 @@ export function validateDocument(table: Fields[]): TableError {
         switch (type) {
           case RecordTypes.Data: continue
           case RecordTypes.Trailer: state = 0; continue
-          default: error = 'Expected data or trailer'; break
+          default: error = ExpectedDataOrTrailer; break
         }
         break
 
-      case 2: error = 'Unexpected any record (after end records)'; break
+      case 2: error = ExpectedNoRecordsAfterEnd; break
       default: _never(state)
     }
 
@@ -421,7 +421,7 @@ export function validateDocument(table: Fields[]): TableError {
   if (!invalid && state !== 2) {
     const last = errors.fieldErrors.at(-1)
     if (last && last.length >= 1 && !last[0]) {
-      last[0] = state === 0 ? 'Expected trailer record after this' : 'Expected end record after this one'
+      last[0] = state === 0 ? ExpectedFollowingTrailer : ExpectedFollowingEnd
     }
   }
   return errors
@@ -429,7 +429,7 @@ export function validateDocument(table: Fields[]): TableError {
 
 export function validateNumberField(value: string, def: FieldDef): Result<string, string> {
   if (value.length > def.size) {
-    return Result.Error('size limit exceeded')
+    return Result.Error(SizeLimitExceeded)
   }
   const badChar = reportBadChar(value, NUMBER_REGEXP)
   if (badChar) {
@@ -441,7 +441,7 @@ export function validateNumberField(value: string, def: FieldDef): Result<string
 
 export function validateCharField(value: string, def: FieldDef): Result<string, string> {
   if (value.length > def.size) {
-    return Result.Error('size limit exceeded')
+    return Result.Error(SizeLimitExceeded)
   }
 
   const badChar = reportBadChar(value, CHAR_REGEXP)
@@ -455,12 +455,24 @@ function reportBadChar(value: string, regexp: RegExp) {
   const m = value.match(regexp)
   if (m == null || m[0].length !== value.length) {
     const bad = m == null ? 0 : m[0].length
-    const c = value.charCodeAt(bad)
-    const badChar = c >= 0x20 && c !== 0x7F ? "'" + value[bad] + "' " : ''
-    const badCode = value.charCodeAt(bad).toString(16).padStart(4, '0').toUpperCase()
-    return `invalid character at ${bad} (${badChar}U+${badCode})`
+    return badCharError(value, bad)
   }
   return null
+}
+
+const ExpectedHeaderOrEnd = 'ヘッダーかエンドレコードが期待されます'
+const ExpectedDataOrTrailer = 'データかトレイラーレコードが期待されます'
+const ExpectedNoRecordsAfterEnd = 'エンドレコードの後にレコードは期待されません'
+const ExpectedFollowingTrailer = '後続のトレイラーレコードが期待されます'
+const ExpectedFollowingEnd = '後続のエンドレコードが期待されます'
+const UnknownRecordTypeError = 'データ区分が無効です'
+const SizeLimitExceeded = 'データの長さ上限を超えています'
+
+const badCharError = (value: string, index: number) => {
+  const c = value.charCodeAt(index)
+  const badChar = c >= 0x20 && c !== 0x7F ? "'" + value[index] + "', " : ''
+  const badCode = value.charCodeAt(index).toString(16).padStart(4, '0').toUpperCase()
+  return `使用可能でない文字があります (${badChar}${index + 1}文字目, U+${badCode})`
 }
 
 const NUMBER_REGEXP = /^[0-9]*/
